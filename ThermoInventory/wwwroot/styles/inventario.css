@@ -1,0 +1,102 @@
+﻿/* --- ESTILOS ADICIONAIS PARA A PÁGINA DE INVENTÁRIO --- */
+
+.hidden {
+    display: none;
+}
+
+.modo-botoes {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    margin-top: 20px;
+}
+
+#camera-reader {
+    width: 100%;
+    border: 2px solid var(--cor-borda);
+    border-radius: 8px;
+    margin-bottom: 15px;
+}
+
+#status {
+    padding: 10px;
+    border-radius: 5px;
+    margin-top: 10px;
+    margin-bottom: 20px;
+    text-align: center;
+    font-weight: bold;
+    transition: all 0.3s;
+}
+
+.status-sucesso {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.status-erro {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+
+.status-info {
+    background-color: #d1ecf1;
+    color: #0c5460;
+}
+
+.btn-danger {
+    background-color: var(--cor-botao-primario);
+}
+.btn-danger:hover {
+    background-color: var(--cor-botao-hover);
+}
+
+.controles-inventario-container {
+    display: flex;
+    justify-content: flex-end; /* Alinha o botão à direita */
+    margin-bottom: 15px;
+}
+
+.btn-icone {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 3px;
+    padding: 8px 12px;
+    background-color: var(--cor-fundo);
+    color: var(--cor-texto-secundario);
+    border: 1px solid var(--cor-borda);
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.9em;
+    transition: background-color 0.3s, color 0.3s;
+}
+
+.btn-icone:hover {
+    background-color: var(--cor-texto-secundario);
+    color: var(--cor-fundo-card);
+}
+
+.btn-icone svg {
+    stroke: var(--cor-texto-secundario);
+    transition: stroke 0.3s;
+}
+
+.btn-icone:hover svg {
+    stroke: var(--cor-fundo-card);
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+}
+
+th, td {
+    border: 1px solid var(--cor-borda);
+    padding: 8px;
+    text-align: left;
+}
+
+th {
+    background-color: var(--cor-fundo);
+}

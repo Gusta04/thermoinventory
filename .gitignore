@@ -1,0 +1,48 @@
+bin/
+obj/
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.DS_Store
+Thumbs.db
+*.log
+*.bak
+packages/
+*.nupkg
+project.lock.json
+publish/
+appsettings.Development.json
+appsettings.json
+.idea
+ThermoTrack.sln.DotSettings.user
+# Arquivo .gitignore padrão para projetos .NET
+
+# Ignora pastas de dependências e ferramentas
+[Bb]in/
+[Oo]bj/
+tools/
+packages/
+*.nupkg
+
+# Ignora arquivos de configuração do usuário e da IDE
+*.user
+*.suo
+*.sln.docstates
+.idea/
+.vs/
+
+# Ignora arquivos temporários e de log
+*.log
+*.tmp
+*.DS_Store
+
+# Ignora configurações de publicação
+*.pubxml
+*.publishproj
+
+# Ignora segredos
+# (Boa prática já deixar preparado para o futuro)
+appsettings.Production.json
+secrets.json

@@ -1,0 +1,68 @@
+﻿<!DOCTYPE html>
+<html lang="pt-br">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>ThermoInventory - Gerador de Etiquetas</title>
+        <link rel="icon" type="image/svg+xml" href="../assets/logo.svg">
+        <link rel="stylesheet" href="../styles/reset.css">
+        <link rel="stylesheet" href="../styles/root.css">
+        <link rel="stylesheet" href="../styles/gerador.css">
+        <link rel="stylesheet" href="../styles/navbar.css">
+        <script src="https://cdn.jsdelivr.net/npm/easyqrcodejs@4.6.0/dist/easy.qrcode.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    </head>
+    <body>
+        <div data-include-html="../components/navbar.html"></div>
+        
+        <div class="card">
+            <div class="card-header">
+                <h1>Gerador de Etiquetas</h1>
+            </div>
+    
+            <div class="card-body">
+                <div class="form-group">
+                    <label for="ordemProducao">Número da Ordem de Produção:</label>
+                    <input type="text" id="ordemProducao" placeholder="OP 010952-01">
+                </div>
+    
+                <div class="form-group">
+                    <label for="quantidade">Quantidade de produtos da ordem:</label>
+                    <input type="number" id="quantidade" placeholder="5">
+                </div>
+    
+                <div class="form-group">
+                    <label for="codigoProduto">Código do Produto:</label>
+                    <input type="text" id="codigoProduto" maxlength="8" placeholder="001.0112">
+                </div>
+    
+                <button id="btnGerarEtiquetas" class="btn">Gerar Etiquetas</button>
+            </div>
+        </div>
+
+        <div id="qrcode-container" style="display: none;"></div>
+        
+        <script type="module">
+            import { gerarEtiquetasEmLotePDF } from '../scripts/etiqueta-generator.js';
+        
+            const btnGerar = document.getElementById('btnGerarEtiquetas');
+            const opInput = document.getElementById('ordemProducao');
+            const qtdInput = document.getElementById('quantidade');
+            const prodInput = document.getElementById('codigoProduto');
+        
+            btnGerar.addEventListener('click', () => {
+                const op = opInput.value;
+                const qtd = qtdInput.value;
+                const prod = prodInput.value;
+        
+                if (!op || !qtd || !prod) {
+                    alert("Por favor, preencha todos os campos.");
+                    return;
+                }
+        
+                gerarEtiquetasEmLotePDF(op, qtd, prod);
+            });
+        </script>
+        <script type="module" src="../scripts/component-loader.js"></script>
+    </body>
+</html>

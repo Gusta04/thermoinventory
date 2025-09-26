@@ -1,0 +1,35 @@
+﻿:root{
+    --cor-fundo: #ecf0f1;
+    --cor-fundo-card: #ffffff;
+    --cor-texto-principal: #2c3e50;
+    --cor-texto-secundario: #34495e;
+    --cor-borda: #bdc3c7;
+    --cor-borda-foco: #2c3e50;
+    --cor-botao-primario: #e74c3c;
+    --cor-botao-hover: #c0392b;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    background-color: var(--cor-fundo);
+    color: var(--cor-texto-principal);
+    margin: 0;
+    padding: 0;
+    display: flex;
+    box-sizing: border-box;
+    justify-content: flex-start;
+    align-items: center; /* Alinha o card no topo do container */
+    flex-grow: 1;
+    flex-direction: column;
+    min-height: 100vh;
+    gap:50px;
+}
+
+body.dark-mode {
+    --cor-fundo: #2c3e50;
+    --cor-fundo-card: #34495e;
+    --cor-texto-principal: #ecf0f1;
+    --cor-texto-secundario: #ffffff;
+    --cor-borda: #4a627a; 
+    --cor-borda-foco: #ecf0f1; 
+}
