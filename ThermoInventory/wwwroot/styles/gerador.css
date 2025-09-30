@@ -81,6 +81,39 @@ input[type="number"]:focus {
     background-color: var(--cor-botao-hover);
 }
 
+/* --- region ESTILOS PARA INTERFACE DE ABAS --- */
+.tab-nav {
+    display: flex;
+    border-bottom: 2px solid var(--cor-borda);
+    margin-bottom: 25px;
+}
+
+.tab-btn {
+    padding: 10px 20px;
+    border: none;
+    background-color: transparent;
+    cursor: pointer;
+    font-size: 1em;
+    color: var(--cor-texto-secundario);
+    border-bottom: 3px solid transparent;
+    margin-bottom: -2px; 
+}
+
+.tab-btn.active {
+    font-weight: bold;
+    color: var(--cor-texto-principal);
+    border-bottom-color: var(--cor-botao-primario);
+}
+
+.tab-pane {
+    display: none; 
+}
+
+.tab-pane.active {
+    display: block; 
+}
+/********** endregion ESTILOS PARA INTERFACE DE ABAS *******/
+
 @media (max-width: 600px) {
 
     body {

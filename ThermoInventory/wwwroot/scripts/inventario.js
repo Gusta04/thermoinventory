@@ -7,13 +7,13 @@ const SCAN_COOLDOWN_MS = 2000;
 let modoAtual = null;
 
 // Elementos da UI
-const selecaoModoEl = document.getElementById('selecao-modo');
-const modoLeitorUsbEl = document.getElementById('modo-leitor-usb');
-const modoCameraEl = document.getElementById('modo-camera');
-const areaResultadosEl = document.getElementById('area-resultados');
-const leitorInput = document.getElementById('leitorInput');
-const statusDiv = document.getElementById('status');
-const tabelaInventarioBody = document.querySelector("#tabelaInventario tbody");
+let selecaoModoEl = document.getElementById('selecao-modo');
+let modoLeitorUsbEl = document.getElementById('modo-leitor-usb');
+let modoCameraEl = document.getElementById('modo-camera');
+let areaResultadosEl = document.getElementById('area-resultados');
+let leitorInput = document.getElementById('leitorInput');
+let statusDiv = document.getElementById('status');
+let tabelaInventarioBody = document.querySelector("#tabelaInventario tbody");
 let html5QrCode = null;
 
 let textoAlternarModo = document.getElementById('texto-alternar-modo');
@@ -54,7 +54,19 @@ function iniciarModoCamera() {
     textoAlternarModo.textContent = "Trocar para Leitor.";
 
     html5QrCode = new Html5Qrcode("camera-reader");
-    const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+    
+    const config = {
+        fps: 10,
+        qrbox: { width: 250, height: 250 },
+        rememberLastUsedCamera: true,
+        formatsToSupport: [
+            Html5QrcodeSupportedFormats.QR_CODE,
+            Html5QrcodeSupportedFormats.CODE_128,
+            Html5QrcodeSupportedFormats.EAN_13,
+            Html5QrcodeSupportedFormats.CODE_39,
+            Html5QrcodeSupportedFormats.DATA_MATRIX
+        ]
+    };
 
     html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess)
         .catch(err => {
@@ -80,19 +92,22 @@ function pararModoCamera() {
         console.log("Scanner da câmera parado.");
         modoCameraEl.classList.add('hidden');
         selecaoModoEl.classList.remove('hidden');
+        controlesInventarioEl.classList.add('hidden');
     }).catch(err => console.error("Erro ao parar a câmera", err));
 }
 
 async function alternarModoDeLeitura() {
+    console.log("teste");
     if (modoAtual === 'leitor') {
         iniciarModoCamera();
         
+        
     } else if (modoAtual === 'camera') {
         await pararCamera();
+        
         iniciarModoLeitor();
     }
 }
-
 //endregion **** Funções Relacionadas a leitura ****
 
 //region **** Sons ****
@@ -133,7 +148,6 @@ function tocarBuzzerErro() {
     oscillator.start();
     oscillator.stop(audioCtx.currentTime + 0.2);
 }
-
 //endregion **** Sons ****
 
 //region **** Salvar e excluir inventário ****
@@ -182,14 +196,12 @@ function carregarInventarioSalvo() {
 }
 
 function limparInventario() {
-    // A função window.confirm() exibe uma caixa de diálogo com OK e Cancelar.
-    // Ela retorna 'true' se o usuário clicar em OK, e 'false' se clicar em Cancelar.
+    
     const confirmacao = confirm("Você tem certeza que deseja encerrar e limpar toda a contagem atual? Esta ação não pode ser desfeita.");
 
     if (confirmacao) {
-        // Se o usuário confirmou, removemos os dados do localStorage
         // noinspection JSVoidFunctionReturnValueUsed
-        pararModoCamera().then(() => {
+        pararCamera().then(() => {
             localStorage.removeItem('inventarioSalvo');
             localStorage.removeItem('ultimoModo');
             console.log("Cache do inventário limpo pelo usuário.");
@@ -200,39 +212,116 @@ function limparInventario() {
 //endregion **** Salvar e excluir inventário ****
 
 //region **** Funções auxiliares ****
+function parseCodigoComplexoERP(codigoCompletoERP){
+    try {
+        const produto = codigoCompletoERP.slice(-8);
+        
+        const meio = codigoCompletoERP.substring(27, codigoCompletoERP.length - 8);
+        
+        const partesDoMeio = meio.split('-');
+        
+        let descricaoFinal = '';
+        
+        if (codigoCompletoERP.startsWith('COMINFAD')){
+            
+            if (partesDoMeio.length >= 3){
+                const infoAdicional = partesDoMeio[partesDoMeio.length - 1];
+                
+                const descricaoPrincipal =  partesDoMeio.slice(1, -1).join('-');
+                descricaoFinal = `${descricaoPrincipal} - ${infoAdicional}`;
+                
+            }else {
+                descricaoFinal = partesDoMeio.slice(1).join('-') || "Descrição Inválida";
+            }
+        }else {
+            if (partesDoMeio.length >= 2){
+                descricaoFinal = partesDoMeio.slice(1).join('-');
+                
+            }else {
+                descricaoFinal = "Descrição Inválida";
+            }
+        }
+        
+        const pagina = partesDoMeio[0];
+        
+        const infoAdicional = partesDoMeio[partesDoMeio.length - 1];
+        
+        
+        
+        if(codigoCompletoERP.startsWith('COMINFAD')){
+            descricaoFinal = `${descricaoPrincipal} - ${infoAdicional}`;
+        }
+        
+        return {produto, descricao: descricaoFinal};
+    }catch(error){
+        console.error("Erro ao fazer a separação do código", error);
+        return null;
+    }
+}
+
 function processarCodigo(codigo) {
     if (!codigo) return;
+    
+    let dadosDoCodigo;
+    let quantidadeASomar = 1;
+    
+    if(codigo.startsWith('COMINFAD') || codigo.startsWith('SEMINFAD')){
+        const resultadoParse = parseCodigoComplexoERP(codigo);
+        
+        if(!resultadoParse){
+            mostrarStatus(`ERRO: Formato de código do ERP inválido.`, 'erro');
+            tocarBuzzerErro();
+            return;
+        }
+        
+        dadosDoCodigo = {
+            produto: resultadoParse.produto.replaceAll('-', '.'),
+            descricao: resultadoParse.descricao
+        };
+
+    } else{
+        const codigoProdutoBruto = extrairCodigoProduto(codigo);
+        
+        if(!codigoProdutoBruto){
+            mostrarStatus(`ERRO: Código '${codigo}' inválido ou curto demais.`, 'erro');
+            tocarBuzzerErro();
+            return;
+        }
+        
+        dadosDoCodigo = {
+            produto: codigoProdutoBruto.replaceAll('-', '.'),
+            descricao: "(Descrição não informada)"
+        };
+    }
+    
+    const chaveComposta = `${dadosDoCodigo.produto}::${dadosDoCodigo.descricao}`;
 
     if (codigosBipados.has(codigo)) {
-        mostrarStatus(`ERRO: O código ${codigo} já foi bipado!`, 'erro');
+        mostrarStatus(`ERRO: A etiqueta ${codigo} já foi bipada!`, 'erro');
         
         tocarBuzzerErro();
-
-    } else {
-        codigosBipados.add(codigo);
         
-        const codigoProduto = extrairCodigoProduto(codigo);
-
-        if (codigoProduto) {
-            const codigoProdutoParaExibicao = codigoProduto.replaceAll('-', '.');
-            const contagemAtual = contagemInventario.get(codigoProdutoParaExibicao) || 0;
-            
-            contagemInventario.set(codigoProdutoParaExibicao, contagemAtual + 1);
-            
-            atualizarTabela();
-            
-            mostrarStatus(`SUCESSO: Item ${codigoProdutoParaExibicao} adicionado. 
-            Contagem total: ${contagemAtual + 1}.`, 'sucesso');
-            
-            tocarBeep();
-            
-            salvarInventario();
-        } else {
-            mostrarStatus(`ERRO: Código '${codigo}' inválido ou curto demais.`, 'erro');
-            
-            tocarBuzzerErro();
-        }
+        return;
     }
+    
+    codigosBipados.add(codigo);
+    
+    const contagemAtual = contagemInventario.get(chaveComposta) || {
+        quantidade: 0,
+        produto: dadosDoCodigo.produto,
+        descricao: dadosDoCodigo.descricao};
+    
+    contagemAtual.quantidade += quantidadeASomar;
+    contagemInventario.set(chaveComposta, contagemAtual);
+    
+    atualizarTabela();
+
+    mostrarStatus(`SUCESSO: ${quantidadeASomar}x ${dadosDoCodigo.produto} adicionado. 
+    Total: ${contagemAtual.quantidade}.`, 'sucesso');
+    
+    tocarBeep();
+    
+    salvarInventario();
 }
 
 function onScanSuccess(decodedText, _decodedResult) {
@@ -257,10 +346,22 @@ function extrairCodigoProduto(codigoCompleto) {
 
 function atualizarTabela() {
     tabelaInventarioBody.innerHTML = '';
-    const sortedInventario = new Map([...contagemInventario.entries()].sort());
-    for (const [produto, quantidade] of sortedInventario) {
+    
+    const listaDeItens = Array.from(contagemInventario.values());
+
+    listaDeItens.sort((a, b) => {
+        if (a.produto < b.produto) return -1;
+        if (a.produto > b.produto) return 1;
+        if (a.descricao < b.descricao) return -1;
+        if (a.descricao > b.descricao) return 1;
+        return 0;
+    });
+
+    for (const item of listaDeItens) {
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${produto}</td><td>${quantidade}</td>`;
+        
+        tr.innerHTML = `<td>${item.produto}</td><td>${item.quantidade}</td>`;
+        
         tabelaInventarioBody.appendChild(tr);
     }
 }
@@ -277,9 +378,10 @@ async function gerarRelatorioPDF() {
         return;
     }
     
-    const dadosParaApi = Array.from(contagemInventario, ([codigo, qtde]) => ({
-        CodigoProduto: codigo,
-        Quantidade: qtde
+    const dadosParaApi = Array.from(contagemInventario.values()).map(item => ({
+        CodigoProduto: item.produto,
+        Quantidade: item.quantidade,
+        Descricao: item.descricao,
     }));
 
     mostrarStatus("Gerando relatório em PDF, por favor aguarde...", "info");
@@ -334,6 +436,7 @@ async function gerarRelatorioPDF() {
 }
 
 function initializeInventarioPage() {
+    
     const btnIniciarLeitor = document.getElementById('btn-iniciar-leitor');
     const btnIniciarCamera = document.getElementById('btn-iniciar-camera');
     const btnPararCamera = document.getElementById('btn-parar-camera');
@@ -343,10 +446,23 @@ function initializeInventarioPage() {
 
     if(btnIniciarLeitor) btnIniciarLeitor.addEventListener('click', iniciarModoLeitor);
     if(btnIniciarCamera) btnIniciarCamera.addEventListener('click', iniciarModoCamera);
-    if(btnPararCamera) btnPararCamera.addEventListener('click', pararModoCamera);
+    if(btnPararCamera) btnPararCamera.addEventListener('click', async () => {
+        await pararModoCamera();
+        
+        if(contagemInventario.size === 0) {
+            modoCameraEl.classList.add('hidden');
+            areaResultadosEl.classList.add('hidden');    
+            controlesInventarioEl.classList.add('hidden');
+            
+            selecaoModoEl.classList.remove('hidden');
+        } else{
+            location.reload();
+        }
+    });
+    
     if(btnLimparInventario) btnLimparInventario.addEventListener('click', limparInventario);
     if(btnGerarRelatorio) btnGerarRelatorio.addEventListener('click', gerarRelatorioPDF);
-    if(btnAlternarModo) btnGerarRelatorio.addEventListener('click', alternarModoDeLeitura);
+    if(btnAlternarModo) btnAlternarModo.addEventListener('click', alternarModoDeLeitura);
     
     carregarInventarioSalvo();
 }

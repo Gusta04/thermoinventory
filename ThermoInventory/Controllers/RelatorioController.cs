@@ -15,7 +15,6 @@ public class RelatorioController : ControllerBase
     {
         if (itensContados == null || itensContados.Count == 0)
         {
-            // Se não enviou, retorna um erro "Bad Request" (Requisição Inválida)
             return BadRequest("A lista de itens contados não pode estar vazia.");
         }
         
@@ -25,12 +24,10 @@ public class RelatorioController : ControllerBase
             {
                 container.Page(page =>
                 {
-                    // Configurações da página
                     page.Size(PageSizes.A4);
                     page.Margin(2, Unit.Centimetre);
                     page.DefaultTextStyle(x => x.FontSize(12));
 
-                    // Cabeçalho do Relatório
                     page.Header()
                         .Column(col =>
                         {
@@ -44,30 +41,30 @@ public class RelatorioController : ControllerBase
                             col.Spacing(10);
                         });
 
-                    // Conteúdo Principal (A Tabela)
                     page.Content()
                         .PaddingVertical(1, Unit.Centimetre)
                         .Table(table =>
                         {
-                            // Define as colunas da tabela
                             table.ColumnsDefinition(columns =>
                             {
-                                columns.RelativeColumn(3); // Coluna para o Código do Produto
-                                columns.RelativeColumn(1); // Coluna para a Quantidade
+                                columns.RelativeColumn(3);
+                                columns.RelativeColumn(7);
+                                columns.RelativeColumn(1); 
                             });
 
-                            // Cabeçalho da tabela
                             table.Header(header =>
                             {
                                 header.Cell().Background(Colors.Grey.Lighten3).Padding(5).Text("Código do Produto");
+                                header.Cell().Background(Colors.Grey.Lighten3).Padding(5).Text("Descrição");
                                 header.Cell().Background(Colors.Grey.Lighten3).Padding(5).AlignRight().Text("Quantidade");
                             });
 
-                            // Corpo da tabela: um loop pelos itens recebidos
                             foreach (var item in itensContados)
                             {
                                 table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).Padding(5).
                                     Text(item.CodigoProduto);
+                                table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).Padding(5).
+                                    Text(item.Descricao);
                                 table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).Padding(5).
                                     AlignRight().Text(item.Quantidade.ToString());
                             }

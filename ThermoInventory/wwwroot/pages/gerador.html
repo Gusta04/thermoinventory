@@ -14,55 +14,118 @@
     </head>
     <body>
         <div data-include-html="../components/navbar.html"></div>
-        
-        <div class="card">
-            <div class="card-header">
-                <h1>Gerador de Etiquetas</h1>
+    
+        <main class="container-principal">
+            <div class="card">
+                <div class="card-header">
+                    <h1>Gerador de Etiquetas</h1>
+                </div>
+    
+                <div class="tab-nav">
+                    <button class="tab-btn active" data-tab="tab-manual">Contagem Manual</button>
+                    <button class="tab-btn" data-tab="tab-padrao">Lote Sequencial (Padrão)</button>
+                    <button class="tab-btn" data-tab="tab-endereco">Endereço</button>
+                </div>
+    
+                <div class="card-body">
+                    <div id="tab-manual" class="tab-pane active">
+                        <div class="form-group">
+                            <label for="manual-descricao">Descrição do Produto:</label>
+                            <input type="text" id="manual-descricao" placeholder="Ex: PERFIL EPDM I 12 X 43MM">
+                        </div>
+                        <div class="form-group">
+                            <label for="manual-codigo">Código do Produto:</label>
+                            <input type="text" id="manual-codigo" placeholder="Ex: 025.0013">
+                        </div>
+                        <button id="btn-gerar-manual" class="btn">Gerar Etiqueta Manual</button>
+                    </div>
+    
+                    <div id="tab-padrao" class="tab-pane">
+                        <div class="form-group">
+                            <label for="ordemProducao">Número da Ordem de Produção:</label>
+                            <input type="text" id="ordemProducao" placeholder="Ex: OP202509">
+                        </div>
+                        <div class="form-group">
+                            <label for="quantidade">Quantidade de Etiquetas:</label>
+                            <input type="number" id="quantidade" placeholder="Ex: 5">
+                        </div>
+                        <div class="form-group">
+                            <label for="codigoProduto">Código do Produto:</label>
+                            <input type="text" id="codigoProduto" placeholder="Ex: 001.0112">
+                        </div>
+                        <button id="btnGerarEtiquetas" class="btn">Gerar Etiquetas em Lote</button>
+                    </div>
+                    
+                    <div id="tab-endereco" class="tab-pane">
+                        <div class="form-group">
+                            <label for="endereco-nome">Nome do Endereço:</label>
+                            <input type="text" id="endereco-nome" placeholder="Ex: PP-01/00">
+                        </div>
+                        <button id="btn-gerar-endereco" class="btn">Gerar Etiqueta de Endereço</button>
+                    </div>
+                </div>
             </div>
+        </main>
     
-            <div class="card-body">
-                <div class="form-group">
-                    <label for="ordemProducao">Número da Ordem de Produção:</label>
-                    <input type="text" id="ordemProducao" placeholder="OP 010952-01">
-                </div>
-    
-                <div class="form-group">
-                    <label for="quantidade">Quantidade de produtos da ordem:</label>
-                    <input type="number" id="quantidade" placeholder="5">
-                </div>
-    
-                <div class="form-group">
-                    <label for="codigoProduto">Código do Produto:</label>
-                    <input type="text" id="codigoProduto" maxlength="8" placeholder="001.0112">
-                </div>
-    
-                <button id="btnGerarEtiquetas" class="btn">Gerar Etiquetas</button>
-            </div>
-        </div>
-
         <div id="qrcode-container" style="display: none;"></div>
-        
+    
+        <script type="module" src="../scripts/component-loader.js"></script>
         <script type="module">
-            import { gerarEtiquetasEmLotePDF } from '../scripts/etiqueta-generator.js';
-        
-            const btnGerar = document.getElementById('btnGerarEtiquetas');
-            const opInput = document.getElementById('ordemProducao');
-            const qtdInput = document.getElementById('quantidade');
-            const prodInput = document.getElementById('codigoProduto');
-        
-            btnGerar.addEventListener('click', () => {
-                const op = opInput.value;
-                const qtd = qtdInput.value;
-                const prod = prodInput.value;
-        
+            import { gerarEtiquetasEmLotePDF, gerarEtiquetaManualPDF, gerarEtiquetaEnderecoPDF } 
+                from '../scripts/etiqueta-generator.js';
+    
+            const btnGerarLote = document.getElementById('btnGerarEtiquetas');
+            btnGerarLote.addEventListener('click', () => {
+                const op = document.getElementById('ordemProducao').value;
+                const qtd = document.getElementById('quantidade').value;
+                const prod = document.getElementById('codigoProduto').value;
+                
                 if (!op || !qtd || !prod) {
-                    alert("Por favor, preencha todos os campos.");
+                    alert("Por favor, preencha todos os campos da Geração em Lote.");
                     return;
                 }
-        
+                
                 gerarEtiquetasEmLotePDF(op, qtd, prod);
             });
+    
+            const btnGerarManual = document.getElementById('btn-gerar-manual');
+            btnGerarManual.addEventListener('click', () => {
+                const desc = document.getElementById('manual-descricao').value;
+                const cod = document.getElementById('manual-codigo').value;
+                
+                if (!desc || !cod) {
+                    alert("Por favor, preencha a Descrição e o Código do Produto.");
+                    return;
+                }
+                
+                gerarEtiquetaManualPDF(desc, cod);
+            });
+
+            const btnGerarEndereco = document.getElementById('btn-gerar-endereco');
+            btnGerarEndereco.addEventListener('click', () => {
+                const endereco = document.getElementById('endereco-nome').value;
+                
+                if (!endereco) {
+                    alert("Por favor, preencha o nome do Endereço.");
+                    return;
+                }
+                
+                gerarEtiquetaEnderecoPDF(endereco);
+            });
+    
+            const tabButtons = document.querySelectorAll('.tab-btn');
+            const tabPanes = document.querySelectorAll('.tab-pane');
+    
+            tabButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    tabButtons.forEach(btn => btn.classList.remove('active'));
+                    button.classList.add('active');
+    
+                    const targetTab = document.getElementById(button.dataset.tab);
+                    tabPanes.forEach(pane => pane.classList.remove('active'));
+                    targetTab.classList.add('active');
+                });
+            });
         </script>
-        <script type="module" src="../scripts/component-loader.js"></script>
     </body>
 </html>
