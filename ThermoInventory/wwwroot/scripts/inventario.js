@@ -287,15 +287,19 @@ function processarCodigo(codigo) {
     }
     
     codigosBipados.add(codigo);
+    
+    const inventarioDoEndereco = contagemInventario.get(enderecoAtual);
+    
     const chaveComposta = `${dadosDoCodigo.produto}::${dadosDoCodigo.descricao}`;
 
-    const contagemAtual = contagemInventario.get(chaveComposta) || {
+    const contagemAtual = inventarioDoEndereco.get(chaveComposta) || {
         quantidade: 0,
         produto: dadosDoCodigo.produto,
         descricao: dadosDoCodigo.descricao};
     
     contagemAtual.quantidade += 1;
-    contagemInventario.set(chaveComposta, contagemAtual);
+
+    inventarioDoEndereco.set(chaveComposta, contagemAtual);
     
     atualizarTabela();
     mostrarStatus(`SUCESSO: Item ${dadosDoCodigo.produto} adicionado.`, 'sucesso');
@@ -347,23 +351,28 @@ function extrairCodigoProduto(codigoCompleto) {
 
 function atualizarTabela() {
     tabelaInventarioBody.innerHTML = '';
+    
+    if (contagemInventario.size === 0) return;
 
-    const listaDeItens = Array.from(contagemInventario.values());
-
-    listaDeItens.sort((a, b) => {
-        if (a.produto < b.produto) return -1;
-        if (a.produto > b.produto) return 1;
-        if (a.descricao < b.descricao) return -1;
-        if (a.descricao > b.descricao) return 1;
-        return 0;
-    });
-
-    for (const item of listaDeItens) {
-        const tr = document.createElement('tr');
-
-        tr.innerHTML = `<td>${item.produto}</td><td>${item.quantidade}</td>`;
-
-        tabelaInventarioBody.appendChild(tr);
+    for (const [endereco, inventarioDoEndereco] of contagemInventario.entries()) {
+        const itensDoEndereco = Array.from(inventarioDoEndereco.values());
+        const totalItensNoEndereco = itensDoEndereco.length;
+        
+        itensDoEndereco.forEach((item, index) => {
+            const tr = document.createElement('tr');
+            let tdEndereco = '';
+            
+            if (index === 0){
+                tdEndereco = `<td rowspan="${totalItensNoEndereco}">${endereco}</td>`;;
+            }
+            
+            tr.innerHTML =`
+                ${tdEndereco}
+                <td>${item.produto}</td>
+                <td>${item.quantidade}</td>
+            `;
+            tabelaInventarioBody.appendChild(tr);
+        })
     }
 }
 
