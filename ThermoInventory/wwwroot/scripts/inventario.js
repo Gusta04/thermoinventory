@@ -7,7 +7,7 @@ const SCAN_COOLDOWN_MS = 2000;
 let modoAtual = null;
 
 const ITENS_ATE_REVALIDACAO = 5;
-let inventarioBloqueado = false;
+let inventarioBloqueado;
 let enderecoAtual = null;
 let scansDesdeEndereco = 0;
 
@@ -248,6 +248,19 @@ function parseCodigoComplexoERP(codigoCompletoERP){
 function processarCodigo(codigo) {
     if (!codigo) return;
     
+    if (inventarioBloqueado) {
+        if (codigo.startsWith('END-')) {
+            definirEndereco(codigo);
+            scansDesdeEndereco = 0;
+                                                            
+        } else {
+            mostrarStatus(`SISTEMA BLOQUEADO! Re-escaneie o endereço 
+                ${enderecoAtual} para continuar.`, 'erro');
+            tocarBuzzerErro();
+        }
+        return;
+    }
+    
     if (codigo.startsWith('END-')){
         definirEndereco(codigo);
         return;
@@ -305,6 +318,15 @@ function processarCodigo(codigo) {
     mostrarStatus(`SUCESSO: Item ${dadosDoCodigo.produto} adicionado.`, 'sucesso');
     tocarBeep();
     salvarInventario();
+    
+    scansDesdeEndereco++;
+    
+    if(scansDesdeEndereco >= ITENS_ATE_REVALIDACAO){
+        inventarioBloqueado = true;
+
+        mostrarStatus(`ATENÇÃO: ${ITENS_ATE_REVALIDACAO} itens lidos. 
+        Por favor, re-escaneie o endereço para continuar.`, 'info');
+    } 
 }
 
 function onScanSuccess(decodedText, _decodedResult) {
