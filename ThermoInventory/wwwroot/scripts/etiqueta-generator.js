@@ -13,19 +13,22 @@ function gerarEtiquetaManualPDF(descricao, codigo) {
         const codFormatado = codUpper.replaceAll('.', '-');
         
         const LARGURA_ETIQUETA_MM = 100;
-        const ALTURA_ETIQUETA_MM = 50;
-        
-        const TAMANHO_QRCODE_MM = 28;
-        const MARGEM_ESQUERDA_QRCODE_MM = 5;
-        const TAMANHO_FONTE_TEXTO = 24;
-        const MARGEM_ENTRE_ELEMENTOS_MM = 5;
+        const ALTURA_ETIQUETA_MM = 30;
+
+        const ALTURA_UTIL_MM = 28;
+        const MARGEM_SUPERIOR_MM = (ALTURA_ETIQUETA_MM - ALTURA_UTIL_MM) / 2;
+
+        const TAMANHO_QRCODE_MM = ALTURA_UTIL_MM - 5;
+        const MARGEM_ESQUERDA_QRCODE_MM = 2;
+        const TAMANHO_FONTE_TEXTO = 16;
+        const MARGEM_ENTRE_ELEMENTOS_MM = 3;
 
         const qrCodeText = `MANUAL-${descUpper}-${codFormatado}`;
 
         const doc = new jsPDF({
             orientation: 'landscape',
             unit: 'mm',
-            format: [100, 50]
+            format: [LARGURA_ETIQUETA_MM, ALTURA_ETIQUETA_MM]
         });
 
         const qrContainer = document.getElementById('qrcode-container');
@@ -38,25 +41,39 @@ function gerarEtiquetaManualPDF(descricao, codigo) {
             correctLevel: QRCode.CorrectLevel.H
         });
 
+        const caixaTextoX = MARGEM_ESQUERDA_QRCODE_MM + TAMANHO_QRCODE_MM + MARGEM_ENTRE_ELEMENTOS_MM;
+        const caixaTextoY = MARGEM_SUPERIOR_MM;
+        const caixaTextoLargura = LARGURA_ETIQUETA_MM - caixaTextoX - MARGEM_ESQUERDA_QRCODE_MM;
+        const caixaTextoAltura = ALTURA_UTIL_MM;
+
         const qrCanvas = qrContainer.querySelector('canvas');
         const qrImage = qrCanvas.toDataURL('image/png');
 
-        const tamanhoQrCode = 40;
-        const margemXQr = 5;
-        const margemYQr = (50 - tamanhoQrCode) / 2;
-        doc.addImage(qrImage, 'PNG', margemXQr, margemYQr, tamanhoQrCode, tamanhoQrCode);
+        const margemYQr = MARGEM_SUPERIOR_MM + ((ALTURA_UTIL_MM - TAMANHO_QRCODE_MM) / 2);
+        doc.addImage(qrImage, 'PNG', MARGEM_ESQUERDA_QRCODE_MM, margemYQr, TAMANHO_QRCODE_MM, TAMANHO_QRCODE_MM);
 
-        const margemXTexto = margemXQr + tamanhoQrCode + 5;
-        doc.setFontSize(18);
+        const margemXTexto = MARGEM_ESQUERDA_QRCODE_MM + TAMANHO_QRCODE_MM + MARGEM_ENTRE_ELEMENTOS_MM;
+        const larguraMaximaTexto = LARGURA_ETIQUETA_MM - margemXTexto - MARGEM_ESQUERDA_QRCODE_MM;
+        
+        doc.setFontSize(TAMANHO_FONTE_TEXTO);
         doc.setFont("helvetica", "bold");
 
         const texto = `${codUpper} - ${descUpper}`;
-        doc.text(texto, margemXTexto, 25, {
-            align: 'left',
-            baseline: 'middle',
-            maxWidth: 100 - margemXTexto - 5
-        });
 
+        const linhasDoTexto = doc.splitTextToSize(texto, caixaTextoLargura);
+        const alturaDoTexto = doc.getTextDimensions(linhasDoTexto).h;
+        const posicaoYInicial = caixaTextoY + (caixaTextoAltura / 2) - (alturaDoTexto / 2);
+        
+        doc.text(texto, (caixaTextoX + (caixaTextoLargura / 2)), posicaoYInicial, {
+            align: 'center',
+            baseline: 'top',
+            maxWidth: larguraMaximaTexto
+        });
+        
+        //doc.setLineDash([2.5])
+        //doc.line(0, MARGEM_SUPERIOR_MM, LARGURA_ETIQUETA_MM, MARGEM_SUPERIOR_MM);
+        //doc.line(0, (MARGEM_SUPERIOR_MM + ALTURA_UTIL_MM), LARGURA_ETIQUETA_MM, (MARGEM_SUPERIOR_MM + ALTURA_UTIL_MM));
+        
         doc.save(`etiqueta-manual-${codUpper}.pdf`);
 
     } catch (error) {

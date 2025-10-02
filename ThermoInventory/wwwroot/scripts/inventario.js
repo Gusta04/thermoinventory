@@ -93,16 +93,32 @@ async function pararCamera() {
 }
 
 async function alternarModoDeLeitura() {
-    console.log("teste");
-    if (modoAtual === 'leitor') {
+    if (modoAtual === 'leitor') 
+    {
         iniciarModoCamera();
-
-
-    } else if (modoAtual === 'camera') {
+    } 
+    else if (modoAtual === 'camera') 
+    {
         await pararCamera();
-
         iniciarModoLeitor();
     }
+    else if (modoAtual === 'pausado')
+    {
+        iniciarModoCamera();
+    }
+}
+
+function mostrarVisaoResumo(){
+    modoAtual = 'pausado';
+
+    selecaoModoEl.classList.add('hidden');
+    modoCameraEl.classList.add('hidden');
+    modoLeitorUsbEl.classList.add('hidden');
+
+    areaResultadosEl.classList.remove('hidden');
+    controlesInventarioEl.classList.remove('hidden');
+
+    textoAlternarModo.textContent = "Continuar Contagem";
 }
 //endregion **** Funções Relacionadas a leitura ****
 
@@ -149,9 +165,16 @@ function tocarBuzzerErro() {
 //region **** Salvar e excluir inventário ****
 function salvarInventario() {
     const dadosParaSalvar = {
-        inventario: Array.from(contagemInventario.entries()),
         bipados: Array.from(codigosBipados)
     };
+    
+    const inventarioSerializavel = {};
+    
+    for (const [endereco, inventarioDoEndereco] of contagemInventario.entries()) {
+        inventarioSerializavel[endereco] = Array.from(inventarioDoEndereco.entries());
+    }
+    
+    dadosParaSalvar.inventario = inventarioSerializavel;
 
     localStorage.setItem('inventarioSalvo', JSON.stringify(dadosParaSalvar));
     console.log("Inventário salvo no cache.");
@@ -160,33 +183,42 @@ function salvarInventario() {
 function carregarInventarioSalvo() {
     const dadosSalvos = localStorage.getItem('inventarioSalvo');
 
-    if (dadosSalvos) {
+    if (dadosSalvos) 
+    {
         console.log("Inventário encontrado no cache. Carregando...");
         const dadosParseados = JSON.parse(dadosSalvos);
 
-        const inventarioRecuperado = new Map(dadosParseados.inventario);
-        const bipadosRecuperados = new Set(dadosParseados.bipados);
-
-        if (inventarioRecuperado.size > 0) {
-            contagemInventario.clear();
-            inventarioRecuperado.forEach((qtde, prod) => contagemInventario.set(prod, qtde));
-
-            codigosBipados.clear();
+        contagemInventario.clear();
+        codigosBipados.clear();
+        
+        if (dadosParseados.inventario)
+        {
+            for (const endereco in dadosParseados.inventario)
+            {
+                const itensDoEnderecoArray = dadosParseados.inventario[endereco];
+                const mapaDoEndereco = new Map(itensDoEnderecoArray);
+                contagemInventario.set(endereco, mapaDoEndereco);
+            }
+        }
+        
+        if (dadosParseados.bipados)
+        {
+            const bipadosRecuperados = new Set(dadosParseados.bipados);
             bipadosRecuperados.forEach(codigo => codigosBipados.add(codigo));
-
+        }
+        
+        if (contagemInventario.size > 0)
+        {
             atualizarTabela();
-
             areaResultadosEl.classList.remove('hidden');
             selecaoModoEl.classList.add('hidden');
-
+            
             const ultimoModo = localStorage.getItem('ultimoModo');
-
-            if (ultimoModo === 'camera') {
-                iniciarModoCamera();
-            } else {
-                modoLeitorUsbEl.classList.remove('hidden');
-                leitorInput.focus();
-            }
+            
+            if (ultimoModo === 'camera') iniciarModoCamera()
+            else if (ultimoModo === 'leitor') iniciarModoLeitor();
+            else if (ultimoModo === 'pausado') mostrarVisaoResumo();
+            else iniciarModoLeitor();
         }
     }
 }
@@ -196,12 +228,13 @@ function limparInventario() {
     const confirmacao = confirm("Você tem certeza que deseja encerrar e limpar toda a contagem atual? Esta ação não pode ser desfeita.");
 
     if (confirmacao) {
-        // noinspection JSVoidFunctionReturnValueUsed
-        pararCamera().then(() => {
-            localStorage.removeItem('inventarioSalvo');
-            localStorage.removeItem('ultimoModo');
-            console.log("Cache do inventário limpo pelo usuário.");
-            location.reload();
+        gerarRelatorioPDF().then(() => {
+            pararCamera().then(() => {
+                localStorage.removeItem('inventarioSalvo');
+                localStorage.removeItem('ultimoModo');
+                console.log("Cache do inventário limpo pelo usuário.");
+                location.reload();
+            });
         });
     }
 }
@@ -409,17 +442,24 @@ async function gerarRelatorioPDF() {
         alert("Nenhum item foi contado ainda. Adicione itens antes de gerar o relatório.");
         return;
     }
+    
+    const urlEndpoint = '/api/relatorio/gerar'
+    
+    const dadosParaApi = Array.from(contagemInventario.entries()).map(([endereco, inventarioDoEndereco]) => {
+        return {
+            Endereco: endereco,
+            Itens: Array.from(inventarioDoEndereco.values()).map(item => ({
+                CodigoProduto: item.produto,
+                Quantidade: item.quantidade,
+                Descricao: item.descricao
+            }))
+        }
+    });
 
-    const dadosParaApi = Array.from(contagemInventario.values()).map(item => ({
-        CodigoProduto: item.produto,
-        Quantidade: item.quantidade,
-        Descricao: item.descricao,
-    }));
-
-    mostrarStatus("Gerando relatório em PDF, por favor aguarde...", "info");
+    mostrarStatus("Gerando relatório, por favor aguarde...", "info");
 
     try {
-        const response = await fetch('/api/relatorio/gerar', {
+        const response = await fetch(urlEndpoint, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -434,11 +474,14 @@ async function gerarRelatorioPDF() {
             const parts = header.split(';');
             let filename = 'relatorio.pdf';
 
-            parts.forEach(part => {
-                if (part.trim().startsWith('filename=')) {
-                    filename = part.split('=')[1].trim().replaceAll(`"`,``);
-                }
-            });
+            if (header){
+                parts.forEach(part => {
+                    if (part.trim().startsWith('filename=')) {
+                        filename = part.split('=')[1].trim().replaceAll(`"`,``);
+                    }
+                });
+            }
+            
 
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -454,6 +497,7 @@ async function gerarRelatorioPDF() {
             document.body.removeChild(a);
 
             mostrarStatus("Relatório PDF gerado com sucesso!", "sucesso");
+            
         } else {
             const errorText = await response.text();
 
@@ -488,7 +532,10 @@ function initializeInventarioPage() {
 
             selecaoModoEl.classList.remove('hidden');
         } else{
-            location.reload();
+            localStorage.setItem('ultimoModo', 'pausado');
+            setTimeout(() => {
+                location.reload();
+            }, 500);
         }
     });
 
