@@ -97,7 +97,6 @@ function gerarEtiquetasEmLotePDF(op, qtd, prod) {
             format: [100, 50]
         });
 
-        const canvas = document.getElementById('barcode-canvas');
         const padding = Math.max(2, String(quantidade).length);
         const prodFormatadoParaCodigo = prod.replaceAll('.', '-');
 
@@ -231,4 +230,109 @@ function gerarEtiquetaEnderecoPDF(endereco){
     }
 }
 
-export { gerarEtiquetaManualPDF, gerarEtiquetasEmLotePDF, gerarEtiquetaEnderecoPDF };
+/**
+ * @param {number} notaFiscal
+ * @param {number} total
+ * @param {number} porCaixa
+ * @param {string} descricao
+ * @param {string} codigo
+ */
+
+function gerarEtiquetasLotePDF(notaFiscal, total, porCaixa, descricao, codigo)
+{
+    try 
+    {
+        const notaFiscalNum = parseInt(notaFiscal);
+        const totalNum = parseInt(total, 10);
+        const porCaixaNum = parseInt(porCaixa, 10);
+        
+        if (isNaN(totalNum) || isNaN(porCaixaNum) || totalNum <= 0 || porCaixaNum <= 0) 
+        {
+            alert("As quantidades devem ser números maiores que zero.");
+            return;
+        }
+        
+        if (totalNum % porCaixaNum !== 0) 
+        {
+            alert("A 'Quantidade Total' deve ser perfeitamente divisível pela 'Quantidade por embalagem'.");
+            return;
+        }
+
+        const LARGURA_ETIQUETA_MM = 100;
+        const ALTURA_ETIQUETA_MM = 50;
+        
+        const numEtiquetas = totalNum / porCaixaNum;
+        const descUpper = descricao.toUpperCase();
+        const codUpper = codigo.toUpperCase();
+        const codFormatado = codUpper.replaceAll('.', '-');
+
+        const caixaTextoX = 5;
+        const caixaTextoY = 1;
+        const caixaTextoLargura = LARGURA_ETIQUETA_MM - (caixaTextoX * 2);
+        const caixaTextoAltura = 10;
+
+        const doc = new jsPDF({
+            orientation: 'landscape',
+            unit: 'mm',
+            format: [100, 50]
+        });
+
+        const qrContainer = document.getElementById('qrcode-container');
+        
+        for (let i = 1; i <= numEtiquetas; i++) 
+        {
+            if (i > 1) 
+            {
+                doc.addPage([LARGURA_ETIQUETA_MM, ALTURA_ETIQUETA_MM], 'landscape');
+            }
+
+            const qrCodeText = `LOTE-${notaFiscalNum}-${i}-${porCaixaNum}-${codFormatado}::${descUpper}`;
+
+            qrContainer.innerHTML = '';
+            new QRCode(qrContainer, { 
+                text: qrCodeText, 
+                width: 256, 
+                height: 256, 
+                correctLevel: QRCode.CorrectLevel.H 
+            });
+            
+            const qrCanvas = qrContainer.querySelector('canvas');
+            const qrImage = qrCanvas.toDataURL('image/png');
+
+            const texto = `${codUpper} - ${descUpper}`;
+
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(12);
+            
+            const linhasDoTexto = doc.splitTextToSize(texto, caixaTextoLargura);
+            const alturaDoTexto = doc.getTextDimensions(linhasDoTexto).h;
+            const posicaoYInicial = caixaTextoY + (caixaTextoAltura / 2) - (alturaDoTexto / 2);
+            
+            doc.text(texto, (caixaTextoX + (caixaTextoLargura / 2)), posicaoYInicial, {
+                align: 'center',
+                baseline: 'top'
+            });
+
+            const tamanhoQrCode = 28;
+            doc.addImage(qrImage, 'PNG', (LARGURA_ETIQUETA_MM - tamanhoQrCode) / 2, 10, tamanhoQrCode, tamanhoQrCode);
+
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(12);
+            
+            doc.text(`CAIXA ${i} DE ${numEtiquetas}`, 5, 45);
+            
+            doc.text(`CONTÉM: ${porCaixaNum} UNID.`, LARGURA_ETIQUETA_MM - 5, 45, { 
+                align: 'right' 
+            });
+        }
+
+        doc.save(`etiquetas-lote-${codUpper}.pdf`);
+    }
+    catch(error) 
+    {
+        console.error("Erro ao gerar as etiquetas de lote:", error);
+        alert("Ocorreu um erro ao gerar o PDF.");
+    }
+}
+
+export { gerarEtiquetaManualPDF, gerarEtiquetasEmLotePDF, gerarEtiquetaEnderecoPDF, gerarEtiquetasLotePDF };

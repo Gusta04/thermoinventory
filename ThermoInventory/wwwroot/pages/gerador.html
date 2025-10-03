@@ -25,6 +25,7 @@
                     <button class="tab-btn active" data-tab="tab-manual">Contagem Manual</button>
                     <button class="tab-btn" data-tab="tab-padrao">Lote Sequencial (Padrão)</button>
                     <button class="tab-btn" data-tab="tab-endereco">Endereço</button>
+                    <button class="tab-btn" data-tab="tab-lote">Lote por Quantidade</button>
                 </div>
     
                 <div class="card-body">
@@ -63,6 +64,30 @@
                         </div>
                         <button id="btn-gerar-endereco" class="btn">Gerar Etiqueta de Endereço</button>
                     </div>
+
+                    <div id="tab-lote" class="tab-pane">
+                        <div class="form-group">
+                            <label for="nota-fiscal">Nota Fiscal:</label>
+                            <input type="number" id="nota-fiscal" placeholder="Ex: 1000">
+                        </div>
+                        <div class="form-group">
+                            <label for="lote-total">Quantidade Total:</label>
+                            <input type="number" id="lote-total" placeholder="Ex: 1000">
+                        </div>
+                        <div class="form-group">
+                            <label for="lote-por-caixa">Quantidade por Embalagem/Caixa:</label>
+                            <input type="number" id="lote-por-caixa" placeholder="Ex: 200">
+                        </div>
+                        <div class="form-group">
+                            <label for="lote-codigo-produto">Código do Produto:</label>
+                            <input type="text" id="lote-codigo-produto" placeholder="Ex: 021.0010">
+                        </div>
+                        <div class="form-group">
+                            <label for="lote-desc-produto">Descrição do Produto:</label>
+                            <input type="text" id="lote-desc-produto" placeholder="Ex: PARAF SEXT 10X45">
+                        </div>
+                        <button id="btn-gerar-lote" class="btn">Gerar Etiquetas de Lote</button>
+                    </div>
                 </div>
             </div>
         </main>
@@ -71,8 +96,12 @@
     
         <script type="module" src="../scripts/component-loader.js"></script>
         <script type="module">
-            import { gerarEtiquetasEmLotePDF, gerarEtiquetaManualPDF, gerarEtiquetaEnderecoPDF } 
-                from '../scripts/etiqueta-generator.js';
+            import { 
+                gerarEtiquetasEmLotePDF, 
+                gerarEtiquetaManualPDF, 
+                gerarEtiquetaEnderecoPDF, 
+                gerarEtiquetasLotePDF 
+            } from '../scripts/etiqueta-generator.js';
     
             const btnGerarLote = document.getElementById('btnGerarEtiquetas');
             btnGerarLote.addEventListener('click', () => {
@@ -111,6 +140,21 @@
                 }
                 
                 gerarEtiquetaEnderecoPDF(endereco);
+            });
+
+            const btnGerarLoteQuantidade = document.getElementById('btn-gerar-lote');
+            btnGerarLoteQuantidade.addEventListener('click', () => {
+                const notaFiscal = document.getElementById('nota-fiscal').value;
+                const total = document.getElementById('lote-total').value;
+                const porCaixa = document.getElementById('lote-por-caixa').value;
+                const desc = document.getElementById('lote-desc-produto').value;
+                const cod = document.getElementById('lote-codigo-produto').value;
+
+                if (!notaFiscal || !total || !porCaixa || !desc || !cod) {
+                    alert("Por favor, preencha todos os campos da Geração por Lote.");
+                    return;
+                }
+                gerarEtiquetasLotePDF(notaFiscal, total, porCaixa, desc, cod);
             });
     
             const tabButtons = document.querySelectorAll('.tab-btn');

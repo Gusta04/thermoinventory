@@ -47,7 +47,7 @@ function iniciarModoLeitor() {
     });
 }
 
-function iniciarModoCamera() {
+async function iniciarModoCamera() {
     localStorage.setItem('ultimoModo', 'camera');
     modoAtual = 'camera';
 
@@ -59,25 +59,33 @@ function iniciarModoCamera() {
     textoAlternarModo.textContent = "Trocar para Leitor.";
 
     html5QrCode = new Html5Qrcode("camera-reader");
+    
+    try{
+        const cameras = await Html5Qrcode.getCameras();
+        const cameraPrincipal = cameras.find(cam => cam.label === 'camera 0, facing back');
 
-    const config = {
-        fps: 10,
-        qrbox: { width: 250, height: 250 },
-        rememberLastUsedCamera: true,
-        formatsToSupport: [
-            Html5QrcodeSupportedFormats.QR_CODE,
-            Html5QrcodeSupportedFormats.CODE_128,
-            Html5QrcodeSupportedFormats.EAN_13,
-            Html5QrcodeSupportedFormats.CODE_39,
-            Html5QrcodeSupportedFormats.DATA_MATRIX
-        ]
-    };
+        const cameraId = cameraPrincipal ? cameraPrincipal.id : { facingMode: "environment" };
+        
+        const config = {
+            fps: 10,
+            qrbox: { width: 250, height: 250 },
+            videoContraints:
+                {
+                    width: {ideal: 1920},
+                    height: {ideal: 1080},
+                    focusMode: "continuous"
+                }
+        }
+        
+        await html5QrCode.start(cameraId, config, onScanSuccess)
+            .catch(err => {
+                  console.error("Erro ao iniciar a câmera", err);
+                  mostrarStatus("Não foi possível iniciar a câmera. Verifique as permissões.", "erro");
+            });
 
-    html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess)
-        .catch(err => {
-            console.error("Erro ao iniciar a câmera", err);
-            mostrarStatus("Não foi possível iniciar a câmera. Verifique as permissões.", "erro");
-        });
+    } catch(error) {
+        console.error("Erro: ", error);
+    }
 }
 
 async function pararCamera() {
@@ -95,7 +103,7 @@ async function pararCamera() {
 async function alternarModoDeLeitura() {
     if (modoAtual === 'leitor') 
     {
-        iniciarModoCamera();
+        await iniciarModoCamera();
     } 
     else if (modoAtual === 'camera') 
     {
@@ -104,7 +112,7 @@ async function alternarModoDeLeitura() {
     }
     else if (modoAtual === 'pausado')
     {
-        iniciarModoCamera();
+        await iniciarModoCamera();
     }
 }
 

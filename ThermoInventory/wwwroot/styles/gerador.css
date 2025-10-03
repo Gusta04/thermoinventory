@@ -86,6 +86,8 @@ input[type="number"]:focus {
     display: flex;
     border-bottom: 2px solid var(--cor-borda);
     margin-bottom: 25px;
+    flex-wrap: wrap;
+    flex-direction: column;
 }
 
 .tab-btn {
