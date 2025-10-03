@@ -237,7 +237,6 @@ function gerarEtiquetaEnderecoPDF(endereco){
  * @param {string} descricao
  * @param {string} codigo
  */
-
 function gerarEtiquetasLotePDF(notaFiscal, total, porCaixa, descricao, codigo)
 {
     try 
@@ -324,6 +323,14 @@ function gerarEtiquetasLotePDF(notaFiscal, total, porCaixa, descricao, codigo)
             doc.text(`CONTÉM: ${porCaixaNum} UNID.`, LARGURA_ETIQUETA_MM - 5, 45, { 
                 align: 'right' 
             });
+
+            doc.setFontSize(10);
+            
+            let date = new Date().toLocaleDateString('pt-br');
+            let hours = new Date().toLocaleTimeString('pt-br');
+            
+            doc.text(`${date} - ${hours}`,
+                LARGURA_ETIQUETA_MM / 2, 49, {align: 'center'});
         }
 
         doc.save(`etiquetas-lote-${codUpper}.pdf`);

@@ -320,12 +320,35 @@ function processarCodigo(codigo) {
     }
     
     let dadosDoCodigo;
-
-    if (codigo.startsWith('COMINFAD') || codigo.startsWith('SEMINFAD')){
+    let quantidadeASomar = 1;
+    
+    if (codigo.startsWith('LOTE-'))
+    {
+        try {
+            const partesPrincipais = codigo.split('::');
+            const descricao = partesPrincipais[1] || "(Descrição não informada)";
+            
+            const partesDoCodigo = partesPrincipais[0].split('-');
+            
+            quantidadeASomar = parseInt(partesDoCodigo[3], 10);
+            
+            const produto = partesDoCodigo.slice(4).join('-').replace('-', '.');
+            
+            dadosDoCodigo = {produto, descricao};
+            
+        } catch(error) { 
+            mostrarStatus(`Erro: Formato de código de LOTE inválido`, 'erro');
+            tocarBuzzerErro();
+            return;
+        }        
+    } 
+    else if (codigo.startsWith('COMINFAD') || codigo.startsWith('SEMINFAD'))
+    {
         dadosDoCodigo = parseCodigoComplexoERP(codigo);
         dadosDoCodigo.produto = dadosDoCodigo.produto.replaceAll('-','.');
         
-    } else {
+    } 
+    else {
         const codigoProdutoBruto = extrairCodigoProduto(codigo);
         
         dadosDoCodigo = codigoProdutoBruto ? {
@@ -351,18 +374,20 @@ function processarCodigo(codigo) {
         produto: dadosDoCodigo.produto,
         descricao: dadosDoCodigo.descricao};
     
-    contagemAtual.quantidade += 1;
+    contagemAtual.quantidade += quantidadeASomar;
 
     inventarioDoEndereco.set(chaveComposta, contagemAtual);
     
     atualizarTabela();
-    mostrarStatus(`SUCESSO: Item ${dadosDoCodigo.produto} adicionado.`, 'sucesso');
+    mostrarStatus(`SUCESSO: ${quantidadeASomar}x ${dadosDoCodigo.produto} adicionado.`, 'sucesso');
     tocarBeep();
     salvarInventario();
     
     scansDesdeEndereco++;
     
-    if(scansDesdeEndereco >= ITENS_ATE_REVALIDACAO){
+    if
+    (scansDesdeEndereco >= ITENS_ATE_REVALIDACAO)
+    {
         inventarioBloqueado = true;
 
         mostrarStatus(`ATENÇÃO: ${ITENS_ATE_REVALIDACAO} itens lidos. 
