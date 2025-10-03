@@ -16,13 +16,18 @@ let selecaoModoEl = document.getElementById('selecao-modo');
 let modoLeitorUsbEl = document.getElementById('modo-leitor-usb');
 let modoCameraEl = document.getElementById('modo-camera');
 let areaResultadosEl = document.getElementById('area-resultados');
+let controlesInventarioEl = document.getElementById('controles-inventario');
+let modalOverlayEl = document.getElementById('modal-manual-overlay');
+let modalProductInfoEl = document.getElementById('modal-product-info');
+let modalQuantityInputEl = document.getElementById('modal-quantity-input');
+
 let leitorInput = document.getElementById('leitorInput');
 let statusDiv = document.getElementById('status');
 let tabelaInventarioBody = document.querySelector("#tabelaInventario tbody");
 let html5QrCode = null;
+let dadosModalAtual = null;
 
 let textoAlternarModo = document.getElementById('texto-alternar-modo');
-let controlesInventarioEl = document.getElementById('controles-inventario');
 let audioCtx;
 
 //region **** Funções Relacionadas a leitura ****
@@ -304,95 +309,118 @@ function processarCodigo(codigo) {
     
     if (codigo.startsWith('END-')){
         definirEndereco(codigo);
-        return;
     }
-    
-    if (!enderecoAtual) {
-        mostrarStatus("ERRO: Por favor, leia primeiro a etiqueta de um endereço.", 'erro');
-        tocarBuzzerErro();
-        return;
-    }
-    
-    if (codigosBipados.has(codigo)) {
-        mostrarStatus(`ERRO: A etiqueta ${codigo} já foi bipada!`, 'erro');
-        tocarBuzzerErro();
-        return;
-    }
-    
-    let dadosDoCodigo;
-    let quantidadeASomar = 1;
-    
-    if (codigo.startsWith('LOTE-'))
+    else if (codigo.startsWith('MANUAL-'))
     {
-        try {
-            const partesPrincipais = codigo.split('::');
-            const descricao = partesPrincipais[1] || "(Descrição não informada)";
-            
-            const partesDoCodigo = partesPrincipais[0].split('-');
-            
-            quantidadeASomar = parseInt(partesDoCodigo[3], 10);
-            
-            const produto = partesDoCodigo.slice(4).join('-').replace('-', '.');
-            
-            dadosDoCodigo = {produto, descricao};
-            
-        } catch(error) { 
-            mostrarStatus(`Erro: Formato de código de LOTE inválido`, 'erro');
+        if (!enderecoAtual) {
+            mostrarStatus("ERRO: Por favor, leia primeiro a etiqueta de um endereço.", 'erro');
             tocarBuzzerErro();
             return;
-        }        
-    } 
-    else if (codigo.startsWith('COMINFAD') || codigo.startsWith('SEMINFAD'))
-    {
-        dadosDoCodigo = parseCodigoComplexoERP(codigo);
-        dadosDoCodigo.produto = dadosDoCodigo.produto.replaceAll('-','.');
+        }
         
-    } 
+        try {
+            const dadosBrutos = codigo.substring(7);
+            const partes = dadosBrutos.split('-');
+
+            const produto = partes.slice(1).join('-').replaceAll('-', '.');
+            const descricao = partes[0];
+
+            abrirModalManual({ produto, descricao }, codigo);
+            
+        } catch (error) {
+            mostrarStatus(`ERRO: Formato de código MANUAL inválido.`, 'erro');
+            tocarBuzzerErro();
+        }
+    }
     else {
-        const codigoProdutoBruto = extrairCodigoProduto(codigo);
-        
-        dadosDoCodigo = codigoProdutoBruto ? {
-            produto: codigoProdutoBruto.replaceAll('-', '.'),
-            descricao: "(Descrição não informada)"
-        } : null;
+
+        if (!enderecoAtual) {
+            mostrarStatus("ERRO: Por favor, leia primeiro a etiqueta de um endereço.", 'erro');
+            tocarBuzzerErro();
+            return;
+        }
+
+        if (codigosBipados.has(codigo)) {
+            mostrarStatus(`ERRO: A etiqueta ${codigo} já foi bipada!`, 'erro');
+            tocarBuzzerErro();
+            return;
+        }
+
+        let dadosDoCodigo;
+        let quantidadeASomar = 1;
+
+        if (codigo.startsWith('LOTE-')) {
+            try {
+                const partesPrincipais = codigo.split('::');
+                const descricao = partesPrincipais[1] || "(Descrição não informada)";
+
+                const partesDoCodigo = partesPrincipais[0].split('-');
+
+                quantidadeASomar = parseInt(partesDoCodigo[3], 10);
+
+                const produto = partesDoCodigo.slice(4).join('-').replace('-', '.');
+
+                dadosDoCodigo = {produto, descricao};
+
+            } catch (error) {
+                mostrarStatus(`Erro: Formato de código de LOTE inválido`, 'erro');
+                tocarBuzzerErro();
+                return;
+            }
+        } 
+        else if (codigo.startsWith('COMINFAD') || codigo.startsWith('SEMINFAD')) 
+        {
+            dadosDoCodigo = parseCodigoComplexoERP(codigo);
+            dadosDoCodigo.produto = dadosDoCodigo.produto.replaceAll('-', '.');
+
+        } 
+        else 
+        {
+            const codigoProdutoBruto = extrairCodigoProduto(codigo);
+
+            dadosDoCodigo = codigoProdutoBruto ? {
+                produto: codigoProdutoBruto.replaceAll('-', '.'),
+                descricao: "(Descrição não informada)"
+            } : null;
+        }
+
+        if (!dadosDoCodigo) {
+            mostrarStatus(`ERRO: Código de produto inválido: '${codigo}'.`, 'erro');
+            tocarBuzzerErro();
+            return;
+        }
+
+        codigosBipados.add(codigo);
+
+        const inventarioDoEndereco = contagemInventario.get(enderecoAtual);
+
+        const chaveComposta = `${dadosDoCodigo.produto}::${dadosDoCodigo.descricao}`;
+
+        const contagemAtual = inventarioDoEndereco.get(chaveComposta) || {
+            quantidade: 0,
+            produto: dadosDoCodigo.produto,
+            descricao: dadosDoCodigo.descricao
+        };
+
+        contagemAtual.quantidade += quantidadeASomar;
+
+        inventarioDoEndereco.set(chaveComposta, contagemAtual);
+
+        atualizarTabela();
+        mostrarStatus(`SUCESSO: ${quantidadeASomar}x ${dadosDoCodigo.produto} adicionado.`, 'sucesso');
+        tocarBeep();
+        salvarInventario();
+
+        scansDesdeEndereco++;
+
+        if
+        (scansDesdeEndereco >= ITENS_ATE_REVALIDACAO) {
+            inventarioBloqueado = true;
+
+            mostrarStatus(`ATENÇÃO: ${ITENS_ATE_REVALIDACAO} itens lidos. 
+            Por favor, re-escaneie o endereço para continuar.`, 'info');
+        }
     }
-    
-    if (!dadosDoCodigo) {
-        mostrarStatus(`ERRO: Código de produto inválido: '${codigo}'.`, 'erro');
-        tocarBuzzerErro();
-        return;
-    }
-    
-    codigosBipados.add(codigo);
-    
-    const inventarioDoEndereco = contagemInventario.get(enderecoAtual);
-    
-    const chaveComposta = `${dadosDoCodigo.produto}::${dadosDoCodigo.descricao}`;
-
-    const contagemAtual = inventarioDoEndereco.get(chaveComposta) || {
-        quantidade: 0,
-        produto: dadosDoCodigo.produto,
-        descricao: dadosDoCodigo.descricao};
-    
-    contagemAtual.quantidade += quantidadeASomar;
-
-    inventarioDoEndereco.set(chaveComposta, contagemAtual);
-    
-    atualizarTabela();
-    mostrarStatus(`SUCESSO: ${quantidadeASomar}x ${dadosDoCodigo.produto} adicionado.`, 'sucesso');
-    tocarBeep();
-    salvarInventario();
-    
-    scansDesdeEndereco++;
-    
-    if
-    (scansDesdeEndereco >= ITENS_ATE_REVALIDACAO)
-    {
-        inventarioBloqueado = true;
-
-        mostrarStatus(`ATENÇÃO: ${ITENS_ATE_REVALIDACAO} itens lidos. 
-        Por favor, re-escaneie o endereço para continuar.`, 'info');
-    } 
 }
 
 function onScanSuccess(decodedText, _decodedResult) {
@@ -451,7 +479,7 @@ function atualizarTabela() {
             let tdEndereco = '';
             
             if (index === 0){
-                tdEndereco = `<td rowspan="${totalItensNoEndereco}">${endereco}</td>`;;
+                tdEndereco = `<td rowspan="${totalItensNoEndereco}">${endereco}</td>`;
             }
             
             tr.innerHTML =`
@@ -467,6 +495,28 @@ function atualizarTabela() {
 function mostrarStatus(mensagem, tipo) {
     statusDiv.textContent = mensagem;
     statusDiv.className = `status status-${tipo}`;
+}
+
+/**
+ * @param {object} dadosDoCodigo
+ * @param {string} codigoOriginal
+ */
+
+function abrirModalManual (dadosDoCodigo, codigoOriginal)
+{
+    dadosModalAtual = {...dadosDoCodigo, codigoOriginal};
+    
+    modalProductInfoEl.textContent = `${dadosDoCodigo.produto} - ${dadosDoCodigo.descricao}`;
+    
+    modalQuantityInputEl.value = '';
+    modalOverlayEl.classList.remove('hidden');
+    modalQuantityInputEl.focus();
+}
+
+function fecharModalManual()
+{
+    modalOverlayEl.classList.add('hidden');
+    dadosModalAtual = null;
 }
 //endregion **** Funções auxiliares ****
 
@@ -552,10 +602,12 @@ function initializeInventarioPage() {
     const btnGerarRelatorio = document.getElementById('btn-gerar-relatorio');
     const btnLimparInventario = document.getElementById('btn-limpar-inventario');
     const btnAlternarModo = document.getElementById('btn-alternar-modo');
+    const modalSaveBtn = document.getElementById('modal-save-btn');
+    const modalCancelBtn = document.getElementById('modal-cancel-btn');
 
-    if(btnIniciarLeitor) btnIniciarLeitor.addEventListener('click', iniciarModoLeitor);
-    if(btnIniciarCamera) btnIniciarCamera.addEventListener('click', iniciarModoCamera);
-    if(btnPararCamera) btnPararCamera.addEventListener('click', async () => {
+    if (btnIniciarLeitor) btnIniciarLeitor.addEventListener('click', iniciarModoLeitor);
+    if (btnIniciarCamera) btnIniciarCamera.addEventListener('click', iniciarModoCamera);
+    if (btnPararCamera) btnPararCamera.addEventListener('click', async () => {
         await pararCamera();
 
         if(contagemInventario.size === 0) {
@@ -572,9 +624,48 @@ function initializeInventarioPage() {
         }
     });
 
-    if(btnLimparInventario) btnLimparInventario.addEventListener('click', limparInventario);
-    if(btnGerarRelatorio) btnGerarRelatorio.addEventListener('click', gerarRelatorioPDF);
-    if(btnAlternarModo) btnAlternarModo.addEventListener('click', alternarModoDeLeitura);
+    if (btnLimparInventario) btnLimparInventario.addEventListener('click', limparInventario);
+    if (btnGerarRelatorio) btnGerarRelatorio.addEventListener('click', gerarRelatorioPDF);
+    if (btnAlternarModo) btnAlternarModo.addEventListener('click', alternarModoDeLeitura);
+    if (modalCancelBtn) modalCancelBtn.addEventListener('click', fecharModalManual);
+    
+    if (modalSaveBtn) modalSaveBtn.addEventListener('click', () =>
+    {
+        const quantidade = parseInt(modalQuantityInputEl.value, 10)
+
+        if (isNaN(quantidade) || quantidade <= 0) {
+            alert("Por favor, digite uma quantidade válida maior que zero.");
+            return;
+        }
+
+        const { produto, descricao, codigoOriginal } = dadosModalAtual;
+        const chaveComposta = `${produto}::${descricao}`;
+
+        codigosBipados.add(codigoOriginal);
+
+        const inventarioDoEndereco = contagemInventario.get(enderecoAtual);
+        const contagemAtual = inventarioDoEndereco.get(chaveComposta) || {
+            quantidade: 0,
+            produto: produto,
+            descricao: descricao
+        };
+
+        contagemAtual.quantidade += quantidade;
+        inventarioDoEndereco.set(chaveComposta, contagemAtual);
+
+        atualizarTabela();
+        mostrarStatus(`SUCESSO: ${quantidade}x ${produto} adicionado(s) ao endereço ${enderecoAtual}.`, 'sucesso');
+        tocarBeep();
+        salvarInventario();
+        
+        fecharModalManual();
+    });
+    
+    window.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && !modalOverlayEl.classList.contains('hidden')) {
+            fecharModalManual();
+        }
+    });
 
     carregarInventarioSalvo();
 }
