@@ -46,24 +46,6 @@ ThermoInventory é uma aplicação web full-stack desenvolvida para a gestão si
 * **Ferramentas e Infraestrutura:**
     * Git & GitHub (Versionamento de Código)
 
-## 📁 Estrutura do Projeto
-
-A estrutura principal do código-fonte está organizada da seguinte forma:
-
-/
-├── ThermoInventory/      # O projeto C#
-│   ├── wwwroot/              # Raiz dos arquivos de frontend
-│   │   ├── assets/           # Ícones e imagens
-│   │   ├── components/       # Componentes HTML reutilizáveis (ex: navbar.html)
-|   |   ├── pages/            # Páginas html
-│   │   ├── scripts/          # Todos os arquivos de lógica JavaScript
-│   │   └── styles/           # Todos os arquivos de estilo CSS
-│   ├── Controllers/          # Controllers da API
-│   ├── Models/               # Classes de modelo para os dados
-│   └── Program.cs            # Ponto de entrada e configuração da aplicação C#
-├── .gitignore                # Arquivo para ignorar pastas e arquivos no Git
-└── ThermoInventory.sln       # Arquivo da Solução
-
 ## 🚀 Como Executar o Projeto (Ambiente de Desenvolvimento)
 
 1.  **Pré-requisitos:**
