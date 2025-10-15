@@ -70,10 +70,6 @@ function gerarEtiquetaManualPDF(descricao, codigo) {
             maxWidth: larguraMaximaTexto
         });
         
-        //doc.setLineDash([2.5])
-        //doc.line(0, MARGEM_SUPERIOR_MM, LARGURA_ETIQUETA_MM, MARGEM_SUPERIOR_MM);
-        //doc.line(0, (MARGEM_SUPERIOR_MM + ALTURA_UTIL_MM), LARGURA_ETIQUETA_MM, (MARGEM_SUPERIOR_MM + ALTURA_UTIL_MM));
-        
         doc.save(`etiqueta-manual-${codUpper}.pdf`);
 
     } catch (error) {
@@ -301,7 +297,7 @@ function gerarEtiquetasLotePDF(notaFiscal, total, porCaixa, descricao, codigo)
             const texto = `${codUpper} - ${descUpper}`;
 
             doc.setFont("helvetica", "bold");
-            doc.setFontSize(12);
+            doc.setFontSize(10);
             
             const linhasDoTexto = doc.splitTextToSize(texto, caixaTextoLargura);
             const alturaDoTexto = doc.getTextDimensions(linhasDoTexto).h;
@@ -318,7 +314,7 @@ function gerarEtiquetasLotePDF(notaFiscal, total, porCaixa, descricao, codigo)
             doc.setFont("helvetica", "normal");
             doc.setFontSize(12);
             
-            doc.text(`CAIXA ${i} DE ${numEtiquetas}`, 5, 45);
+            doc.text(`NF: ${notaFiscal}`, 5, 45);
             
             doc.text(`CONTÉM: ${porCaixaNum} UNID.`, LARGURA_ETIQUETA_MM - 5, 45, { 
                 align: 'right' 

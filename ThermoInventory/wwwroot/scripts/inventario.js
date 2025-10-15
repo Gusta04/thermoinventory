@@ -6,7 +6,7 @@ let isScanningPaused = false;
 const SCAN_COOLDOWN_MS = 2000;
 let modoAtual = null;
 
-const ITENS_ATE_REVALIDACAO = 5;
+const ITENS_ATE_REVALIDACAO = 7;
 let inventarioBloqueado;
 let enderecoAtual = null;
 let scansDesdeEndereco = 0;
@@ -173,6 +173,27 @@ function tocarBuzzerErro() {
     oscillator.start();
     oscillator.stop(audioCtx.currentTime + 0.2);
 }
+
+/**
+ * @param {string} texto
+ */
+function falarTexto(texto) 
+{
+    if ('speechSynthesis' in window) 
+    {
+        const utterance = new SpeechSynthesisUtterance(texto);
+
+        utterance.lang = 'pt-BR';
+        utterance.rate = 1.1;
+
+        window.speechSynthesis.speak(utterance);
+    } 
+    else 
+    {
+        console.warn("API de Síntese de Voz não suportada neste navegador.");
+        tocarBuzzerErro();
+    }
+}
 //endregion **** Sons ****
 
 //region **** Salvar e excluir inventário ****
@@ -294,12 +315,16 @@ function parseCodigoComplexoERP(codigoCompletoERP){
 function processarCodigo(codigo) {
     if (!codigo) return;
     
-    if (inventarioBloqueado) {
-        if (codigo.startsWith('END-')) {
+    if (inventarioBloqueado) 
+    {
+        if (codigo.startsWith('END-')) 
+        {
             definirEndereco(codigo);
             scansDesdeEndereco = 0;
                                                             
-        } else {
+        } 
+        else 
+        {
             mostrarStatus(`SISTEMA BLOQUEADO! Re-escaneie o endereço 
                 ${enderecoAtual} para continuar.`, 'erro');
             tocarBuzzerErro();
@@ -312,7 +337,8 @@ function processarCodigo(codigo) {
     }
     else if (codigo.startsWith('MANUAL-'))
     {
-        if (!enderecoAtual) {
+        if (!enderecoAtual) 
+        {
             mostrarStatus("ERRO: Por favor, leia primeiro a etiqueta de um endereço.", 'erro');
             tocarBuzzerErro();
             return;
@@ -416,9 +442,13 @@ function processarCodigo(codigo) {
         if
         (scansDesdeEndereco >= ITENS_ATE_REVALIDACAO) {
             inventarioBloqueado = true;
+            
+            const mensagemDeAlerta = `Atenção: ${ITENS_ATE_REVALIDACAO} itens lidos. 
+            Por favor, confirme o endereço para continuar.`;
 
-            mostrarStatus(`ATENÇÃO: ${ITENS_ATE_REVALIDACAO} itens lidos. 
-            Por favor, re-escaneie o endereço para continuar.`, 'info');
+            mostrarStatus(mensagemDeAlerta, 'info');
+
+            falarTexto(mensagemDeAlerta);
         }
     }
 }
@@ -517,6 +547,8 @@ function fecharModalManual()
 {
     modalOverlayEl.classList.add('hidden');
     dadosModalAtual = null;
+    
+    if (modoAtual === 'leitor') leitorInput.focus();
 }
 //endregion **** Funções auxiliares ****
 
