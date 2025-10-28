@@ -1,6 +1,5 @@
 var builder = WebApplication.CreateBuilder(args);
 // Agora o servidor ouve em HTTP na porta 5100 e em HTTPS na porta 7100
-builder.WebHost.UseUrls("http://*:5100", "https://*:7100");
 
 builder.Services.AddControllers();
 
@@ -16,7 +15,7 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 }
 
-app.UseHttpsRedirection();
+//app.UseHttpsRedirection();
 
 app.UseDefaultFiles();
 app.UseStaticFiles();

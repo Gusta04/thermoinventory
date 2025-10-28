@@ -283,7 +283,7 @@ function parseCodigoComplexoERP(codigoCompletoERP){
 
         const partesDoMeio = meio.split('-');
 
-        let descricaoFinal = '';
+        let descricaoFinal;
 
         if (codigoCompletoERP.startsWith('COMINFAD')){
 
