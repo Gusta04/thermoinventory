@@ -1,6 +1,7 @@
 ﻿// Estado da aplicação
 const contagemInventario = new Map();
 const codigosBipados = new Set();
+const codigosPorEndereco = new Map();
 const TAMANHO_CODIGO_PRODUTO = 8;
 let isScanningPaused = false;
 const SCAN_COOLDOWN_MS = 2000;
@@ -10,6 +11,9 @@ const ITENS_ATE_REVALIDACAO = 7;
 let inventarioBloqueado;
 let enderecoAtual = null;
 let scansDesdeEndereco = 0;
+
+let modoRecontagem = false;
+let aguardandoEnderecoParaRecontar = false;
 
 // Elementos da UI
 let selecaoModoEl = document.getElementById('selecao-modo');
@@ -64,13 +68,13 @@ async function iniciarModoCamera() {
     textoAlternarModo.textContent = "Trocar para Leitor.";
 
     html5QrCode = new Html5Qrcode("camera-reader");
-    
+
     try{
         const cameras = await Html5Qrcode.getCameras();
         const cameraPrincipal = cameras.find(cam => cam.label === 'camera 0, facing back');
 
         const cameraId = cameraPrincipal ? cameraPrincipal.id : { facingMode: "environment" };
-        
+
         const config = {
             fps: 10,
             qrbox: { width: 250, height: 250 },
@@ -81,11 +85,11 @@ async function iniciarModoCamera() {
                     focusMode: "continuous"
                 }
         }
-        
+
         await html5QrCode.start(cameraId, config, onScanSuccess)
             .catch(err => {
-                  console.error("Erro ao iniciar a câmera", err);
-                  mostrarStatus("Não foi possível iniciar a câmera. Verifique as permissões.", "erro");
+                console.error("Erro ao iniciar a câmera", err);
+                mostrarStatus("Não foi possível iniciar a câmera. Verifique as permissões.", "erro");
             });
 
     } catch(error) {
@@ -106,11 +110,11 @@ async function pararCamera() {
 }
 
 async function alternarModoDeLeitura() {
-    if (modoAtual === 'leitor') 
+    if (modoAtual === 'leitor')
     {
         await iniciarModoCamera();
-    } 
-    else if (modoAtual === 'camera') 
+    }
+    else if (modoAtual === 'camera')
     {
         await pararCamera();
         iniciarModoLeitor();
@@ -177,9 +181,9 @@ function tocarBuzzerErro() {
 /**
  * @param {string} texto
  */
-function falarTexto(texto) 
+function falarTexto(texto)
 {
-    if ('speechSynthesis' in window) 
+    if ('speechSynthesis' in window)
     {
         const utterance = new SpeechSynthesisUtterance(texto);
 
@@ -187,8 +191,8 @@ function falarTexto(texto)
         utterance.rate = 1.1;
 
         window.speechSynthesis.speak(utterance);
-    } 
-    else 
+    }
+    else
     {
         console.warn("API de Síntese de Voz não suportada neste navegador.");
         tocarBuzzerErro();
@@ -196,18 +200,115 @@ function falarTexto(texto)
 }
 //endregion **** Sons ****
 
+
+//region **** Recontagem de Endereço ********
+function iniciarRecontagem() {
+    
+    if (contagemInventario.size === 0) {
+        alert("Não há dados de inventário para recontar. Realize uma contagem primeiro");
+        return;
+    }
+    
+    modoRecontagem = true;
+    aguardandoEnderecoParaRecontar = true;
+    
+    const mensagem = "MODO RECONTAGEM ATIVADO: Escaneie o endereço que deseja recontar."
+    mostrarStatus(mensagem, "info");
+    falarTexto(mensagem);
+    
+    const btnRecontar = document.getElementById("btn-recontar-endereco");
+    const btnCancelar = document.getElementById("btn-cancelar-recontagem");
+    
+    if (btnRecontar) {
+        btnRecontar.style.backgroundColor = "#f39c12";
+        btnRecontar.textContent = "⏳ Aguardando Endereço...";
+        btnRecontar.style.pointerEvents = "none";
+    }
+
+    if (btnCancelar) {
+        btnCancelar.classList.remove('hidden');
+    }
+}
+
+/**
+ * @param {string} endereco
+ */
+function limparDadosDoEndereco (endereco) {
+    if (!contagemInventario.has(endereco)) {
+        mostrarStatus(`ERRO: O endereço "${endereco}" não foi encontrado no inventario atual.`, "erro");
+        tocarBuzzerErro();
+        cancelarRecontagem();
+        return;
+    }
+    
+    if (codigosPorEndereco.has(endereco)) {
+        const codigosDoEndereco = codigosPorEndereco.get(endereco);
+        codigosDoEndereco.forEach((codigo) => {
+            codigosBipados.delete(codigo);
+        });
+        
+        codigosPorEndereco.delete(endereco);
+        console.log(`${codigosDoEndereco.size} código(s) removido(s) do endereço "${endereco}".`);
+        
+    }
+    
+    const itensRemovidos = contagemInventario.get(endereco);
+    contagemInventario.delete(endereco);
+    
+    const quantidadeItensRemovidos = itensRemovidos.size;
+    
+    console.log(`Endereço "${endereco}" limpo. ${quantidadeItensRemovidos} item(ns) removido(s).`);
+    
+    enderecoAtual = endereco;
+    scansDesdeEndereco = 0;
+    inventarioBloqueado = false;
+    
+    contagemInventario.set(endereco, new Map());
+    codigosPorEndereco.set(endereco, new Set());
+    
+    atualizarTabela();
+    salvarInventario();
+    
+    const mensagem = `Endereço "${endereco}" limpo! Você pode recontar os itens agora.`;
+    mostrarStatus(mensagem, "Sucesso");
+    tocarBeep();
+    falarTexto(mensagem);
+    
+    cancelarRecontagem();
+}
+
+function cancelarRecontagem() {
+    modoRecontagem = false;
+    aguardandoEnderecoParaRecontar = false;
+    
+    const btnRecontar = document.getElementById("btn-recontar-endereco");
+    const btnCancelar = document.getElementById('btn-cancelar-recontagem');
+    
+    if (btnRecontar) {
+        btnRecontar.style.backgroundColor = "";
+        btnRecontar.textContent = "🔄 Recontar Endereço";
+        btnRecontar.style.pointerEvents = "";
+    }
+
+    if (btnCancelar) {
+        btnCancelar.classList.add('hidden');
+    }
+}
+//endregion **** Recontagem de Endereço ********
+
+
 //region **** Salvar e excluir inventário ****
 function salvarInventario() {
     const dadosParaSalvar = {
         bipados: Array.from(codigosBipados)
     };
-    
+
     const inventarioSerializavel = {};
-    
+
     for (const [endereco, inventarioDoEndereco] of contagemInventario.entries()) {
         inventarioSerializavel[endereco] = Array.from(inventarioDoEndereco.entries());
     }
-    
+
     dadosParaSalvar.inventario = inventarioSerializavel;
 
     localStorage.setItem('inventarioSalvo', JSON.stringify(dadosParaSalvar));
@@ -217,14 +318,15 @@ function salvarInventario() {
 function carregarInventarioSalvo() {
     const dadosSalvos = localStorage.getItem('inventarioSalvo');
 
-    if (dadosSalvos) 
+    if (dadosSalvos)
     {
         console.log("Inventário encontrado no cache. Carregando...");
         const dadosParseados = JSON.parse(dadosSalvos);
 
         contagemInventario.clear();
         codigosBipados.clear();
-        
+        codigosPorEndereco.clear();
+
         if (dadosParseados.inventario)
         {
             for (const endereco in dadosParseados.inventario)
@@ -234,21 +336,31 @@ function carregarInventarioSalvo() {
                 contagemInventario.set(endereco, mapaDoEndereco);
             }
         }
-        
+
         if (dadosParseados.bipados)
         {
             const bipadosRecuperados = new Set(dadosParseados.bipados);
             bipadosRecuperados.forEach(codigo => codigosBipados.add(codigo));
         }
-        
+
+        if (dadosParseados.codigosPorEndereco)
+        {
+            for (const endereco in dadosParseados.codigosPorEndereco)
+            {
+                const codigosArray = dadosParseados.codigosPorEndereco[endereco];
+                const codigosSet = new Set(codigosArray);
+                codigosPorEndereco.set(endereco, codigosSet);
+            }
+        }
+
         if (contagemInventario.size > 0)
         {
             atualizarTabela();
             areaResultadosEl.classList.remove('hidden');
             selecaoModoEl.classList.add('hidden');
-            
+
             const ultimoModo = localStorage.getItem('ultimoModo');
-            
+
             if (ultimoModo === 'camera') iniciarModoCamera()
             else if (ultimoModo === 'leitor') iniciarModoLeitor();
             else if (ultimoModo === 'pausado') mostrarVisaoResumo();
@@ -304,7 +416,7 @@ function parseCodigoComplexoERP(codigoCompletoERP){
                 descricaoFinal = "Descrição Inválida";
             }
         }
-        
+
         return {produto, descricao: descricaoFinal};
     } catch(error){
         console.error("Erro ao fazer a separação do código", error);
@@ -315,15 +427,28 @@ function parseCodigoComplexoERP(codigoCompletoERP){
 function processarCodigo(codigo) {
     if (!codigo) return;
     
-    if (inventarioBloqueado) 
+    if (aguardandoEnderecoParaRecontar) {
+        if(codigo.startsWith('END-')){
+            const endereco = codigo.substring(4);
+            limparDadosDoEndereco(endereco);
+            return;
+        }
+        else {
+            mostrarStatus("ERRO: Esperando um código de ENDEREÇO. Escaneie uma etiqueta de endereço.", "erro");
+            tocarBuzzerErro();
+            return;
+        }
+    }
+
+    if (inventarioBloqueado)
     {
-        if (codigo.startsWith('END-')) 
+        if (codigo.startsWith('END-'))
         {
             definirEndereco(codigo);
             scansDesdeEndereco = 0;
-                                                            
-        } 
-        else 
+
+        }
+        else
         {
             mostrarStatus(`SISTEMA BLOQUEADO! Re-escaneie o endereço 
                 ${enderecoAtual} para continuar.`, 'erro');
@@ -331,19 +456,19 @@ function processarCodigo(codigo) {
         }
         return;
     }
-    
+
     if (codigo.startsWith('END-')){
         definirEndereco(codigo);
     }
     else if (codigo.startsWith('MANUAL-'))
     {
-        if (!enderecoAtual) 
+        if (!enderecoAtual)
         {
             mostrarStatus("ERRO: Por favor, leia primeiro a etiqueta de um endereço.", 'erro');
             tocarBuzzerErro();
             return;
         }
-        
+
         try {
             const dadosBrutos = codigo.substring(7);
             const partes = dadosBrutos.split('-');
@@ -352,7 +477,7 @@ function processarCodigo(codigo) {
             const descricao = partes[0];
 
             abrirModalManual({ produto, descricao }, codigo);
-            
+
         } catch (error) {
             mostrarStatus(`ERRO: Formato de código MANUAL inválido.`, 'erro');
             tocarBuzzerErro();
@@ -393,14 +518,14 @@ function processarCodigo(codigo) {
                 tocarBuzzerErro();
                 return;
             }
-        } 
-        else if (codigo.startsWith('COMINFAD') || codigo.startsWith('SEMINFAD')) 
+        }
+        else if (codigo.startsWith('COMINFAD') || codigo.startsWith('SEMINFAD'))
         {
             dadosDoCodigo = parseCodigoComplexoERP(codigo);
             dadosDoCodigo.produto = dadosDoCodigo.produto.replaceAll('-', '.');
 
-        } 
-        else 
+        }
+        else
         {
             const codigoProdutoBruto = extrairCodigoProduto(codigo);
 
@@ -417,6 +542,11 @@ function processarCodigo(codigo) {
         }
 
         codigosBipados.add(codigo);
+
+        if (!codigosPorEndereco.has(enderecoAtual)) {
+            codigosPorEndereco.set(enderecoAtual, new Set());
+        }
+        codigosPorEndereco.get(enderecoAtual).add(codigo);
 
         const inventarioDoEndereco = contagemInventario.get(enderecoAtual);
 
@@ -442,7 +572,7 @@ function processarCodigo(codigo) {
         if
         (scansDesdeEndereco >= ITENS_ATE_REVALIDACAO) {
             inventarioBloqueado = true;
-            
+
             const mensagemDeAlerta = `Atenção: ${ITENS_ATE_REVALIDACAO} itens lidos. 
             Por favor, confirme o endereço para continuar.`;
 
@@ -473,20 +603,24 @@ function onScanSuccess(decodedText, _decodedResult) {
  */
 function definirEndereco(codigoEndereco) {
     const novoEndereco = codigoEndereco.substring(4);
-    
+
     if (enderecoAtual !== novoEndereco) {
         scansDesdeEndereco = 0;
     }
-    
+
     enderecoAtual = novoEndereco;
     inventarioBloqueado = false;
-    
+
     if (!contagemInventario.has(enderecoAtual)){
         contagemInventario.set(enderecoAtual, new Map());
     }
 
+    if (!codigosPorEndereco.has(enderecoAtual)){
+        codigosPorEndereco.set(enderecoAtual, new Set());
+    }
+
     mostrarStatus(`Contagem iniciada no endereço: ${enderecoAtual}. Pode ler os produtos.`, 'info');
-    
+
     tocarBeep();
 }
 
@@ -497,21 +631,21 @@ function extrairCodigoProduto(codigoCompleto) {
 
 function atualizarTabela() {
     tabelaInventarioBody.innerHTML = '';
-    
+
     if (contagemInventario.size === 0) return;
 
     for (const [endereco, inventarioDoEndereco] of contagemInventario.entries()) {
         const itensDoEndereco = Array.from(inventarioDoEndereco.values());
         const totalItensNoEndereco = itensDoEndereco.length;
-        
+
         itensDoEndereco.forEach((item, index) => {
             const tr = document.createElement('tr');
             let tdEndereco = '';
-            
+
             if (index === 0){
                 tdEndereco = `<td rowspan="${totalItensNoEndereco}">${endereco}</td>`;
             }
-            
+
             tr.innerHTML =`
                 ${tdEndereco}
                 <td>${item.produto}</td>
@@ -535,9 +669,9 @@ function mostrarStatus(mensagem, tipo) {
 function abrirModalManual (dadosDoCodigo, codigoOriginal)
 {
     dadosModalAtual = {...dadosDoCodigo, codigoOriginal};
-    
+
     modalProductInfoEl.textContent = `${dadosDoCodigo.produto} - ${dadosDoCodigo.descricao}`;
-    
+
     modalQuantityInputEl.value = '';
     modalOverlayEl.classList.remove('hidden');
     modalQuantityInputEl.focus();
@@ -547,7 +681,7 @@ function fecharModalManual()
 {
     modalOverlayEl.classList.add('hidden');
     dadosModalAtual = null;
-    
+
     if (modoAtual === 'leitor') leitorInput.focus();
 }
 //endregion **** Funções auxiliares ****
@@ -557,9 +691,9 @@ async function gerarRelatorioPDF() {
         alert("Nenhum item foi contado ainda. Adicione itens antes de gerar o relatório.");
         return;
     }
-    
+
     const urlEndpoint = '/api/relatorio/gerar'
-    
+
     const dadosParaApi = Array.from(contagemInventario.entries()).map(([endereco, inventarioDoEndereco]) => {
         return {
             Endereco: endereco,
@@ -596,7 +730,7 @@ async function gerarRelatorioPDF() {
                     }
                 });
             }
-            
+
 
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -612,7 +746,7 @@ async function gerarRelatorioPDF() {
             document.body.removeChild(a);
 
             mostrarStatus("Relatório PDF gerado com sucesso!", "sucesso");
-            
+
         } else {
             const errorText = await response.text();
 
@@ -634,6 +768,8 @@ function initializeInventarioPage() {
     const btnGerarRelatorio = document.getElementById('btn-gerar-relatorio');
     const btnLimparInventario = document.getElementById('btn-limpar-inventario');
     const btnAlternarModo = document.getElementById('btn-alternar-modo');
+    const btnRecontarEndereco = document.getElementById('btn-recontar-endereco');
+    const btnCancelarRecontagem = document.getElementById('btn-cancelar-recontagem');
     const modalSaveBtn = document.getElementById('modal-save-btn');
     const modalCancelBtn = document.getElementById('modal-cancel-btn');
 
@@ -659,8 +795,20 @@ function initializeInventarioPage() {
     if (btnLimparInventario) btnLimparInventario.addEventListener('click', limparInventario);
     if (btnGerarRelatorio) btnGerarRelatorio.addEventListener('click', gerarRelatorioPDF);
     if (btnAlternarModo) btnAlternarModo.addEventListener('click', alternarModoDeLeitura);
+
+    if (btnRecontarEndereco) {
+        btnRecontarEndereco.addEventListener('click', iniciarRecontagem);
+    }
+
+    if (btnCancelarRecontagem) {
+        btnCancelarRecontagem.addEventListener('click', () => {
+            cancelarRecontagem();
+            mostrarStatus("Recontagem cancelada.", "info");
+        });
+    }
+        
     if (modalCancelBtn) modalCancelBtn.addEventListener('click', fecharModalManual);
-    
+
     if (modalSaveBtn) modalSaveBtn.addEventListener('click', () =>
     {
         const quantidade = parseInt(modalQuantityInputEl.value, 10)
@@ -674,6 +822,10 @@ function initializeInventarioPage() {
         const chaveComposta = `${produto}::${descricao}`;
 
         codigosBipados.add(codigoOriginal);
+
+        if (codigosPorEndereco.has(enderecoAtual)) {
+            codigosPorEndereco.get(enderecoAtual).add(codigoOriginal);
+        }
 
         const inventarioDoEndereco = contagemInventario.get(enderecoAtual);
         const contagemAtual = inventarioDoEndereco.get(chaveComposta) || {
@@ -689,13 +841,18 @@ function initializeInventarioPage() {
         mostrarStatus(`SUCESSO: ${quantidade}x ${produto} adicionado(s) ao endereço ${enderecoAtual}.`, 'sucesso');
         tocarBeep();
         salvarInventario();
-        
+
         fecharModalManual();
     });
-    
+
     window.addEventListener('keydown', (event) => {
         if (event.key === 'Escape' && !modalOverlayEl.classList.contains('hidden')) {
             fecharModalManual();
+        }
+        
+        if (event.key === 'Escape' && aguardandoEnderecoParaRecontar) {
+            cancelarRecontagem();
+            mostrarStatus("Recontagem cancelada.", "info");
         }
     });
 

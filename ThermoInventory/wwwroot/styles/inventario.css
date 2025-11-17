@@ -1,9 +1,4 @@
 ﻿/* --- ESTILOS ADICIONAIS PARA A PÁGINA DE INVENTÁRIO --- */
-
-.hidden {
-    display: none;
-}
-
 .modo-botoes {
     display: flex;
     flex-direction: column;
@@ -52,8 +47,10 @@
 
 .controles-inventario-container {
     display: flex;
-    justify-content: flex-end; /* Alinha o botão à direita */
+    justify-content: flex-end;
+    gap: 10px;
     margin-bottom: 15px;
+    flex-wrap: wrap;
 }
 
 .btn-icone {
@@ -85,6 +82,25 @@
     stroke: var(--cor-fundo-card);
 }
 
+.btn-cancelar {
+    background-color: var(--cor-botao-primario);
+    color: var(--cor-texto-secundario);
+    border-color: var(--cor-botao-hover);
+}
+
+.btn-cancelar:hover {
+    background-color: var(--cor-botao-hover);
+    color: var(--cor-texto-secundario);
+}
+
+.btn-cancelar svg{
+    stroke: var(--cor-texto-secundario);
+}
+
+.btn-cancelar:hover svg{
+    stroke: var(--cor-texto-secundario);
+}
+
 table {
     width: 100%;
     border-collapse: collapse;
@@ -104,16 +120,16 @@ th {
 /*Janela de inserção manual de quantidade*/
 
 .modal-overlay {
-    position: fixed; 
+    position: fixed;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(0, 0, 0, 0.6); 
+    background-color: rgba(0, 0, 0, 0.6);
     display: flex;
     justify-content: center;
     align-items: center;
-    z-index: 2000; 
+    z-index: 2000;
     opacity: 1;
     transition: opacity 0.3s ease;
 }
@@ -121,7 +137,7 @@ th {
 
 .modal-overlay.hidden {
     opacity: 0;
-    pointer-events: none; 
+    pointer-events: none;
 }
 
 .modal-content {
@@ -162,6 +178,21 @@ th {
 }
 
 .btn-secondary:hover {
-    background-color: #95a5a6; 
+    background-color: #95a5a6;
 }
 
+.hidden {
+    display: none;
+}
+
+@media (max-width: 600px) {
+    .controles-inventario-container {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .btn-icone {
+        width: 100%;
+        justify-content: center;
+    }
+}
