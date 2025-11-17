@@ -633,10 +633,18 @@ function atualizarTabela() {
     tabelaInventarioBody.innerHTML = '';
 
     if (contagemInventario.size === 0) return;
+    
+    let totalGeralItens = 0;
 
     for (const [endereco, inventarioDoEndereco] of contagemInventario.entries()) {
         const itensDoEndereco = Array.from(inventarioDoEndereco.values());
         const totalItensNoEndereco = itensDoEndereco.length;
+
+        let subtotalEndereco = 0;
+        itensDoEndereco.forEach(item => {
+            subtotalEndereco += item.quantidade;
+        });
+        totalGeralItens += subtotalEndereco;
 
         itensDoEndereco.forEach((item, index) => {
             const tr = document.createElement('tr');
@@ -652,8 +660,45 @@ function atualizarTabela() {
                 <td>${item.quantidade}</td>
             `;
             tabelaInventarioBody.appendChild(tr);
-        })
+        });
+
+        const trSubtotal = document.createElement('tr');
+        trSubtotal.classList.add('linha-subtotal');
+        trSubtotal.innerHTML = `
+            <td colspan="2" style="text-align: right; font-weight: bold; background-color: var(--cor-fundo); padding: 8px;">
+                Subtotal ${endereco}:
+            </td>
+            <td style="font-weight: bold; background-color: var(--cor-fundo); padding: 8px;">
+                ${subtotalEndereco}
+            </td>
+        `;
+        tabelaInventarioBody.appendChild(trSubtotal);
     }
+
+    const trTotalGeral = document.createElement('tr');
+    trTotalGeral.classList.add('linha-total-geral');
+    trTotalGeral.innerHTML = `
+        <td colspan="2" 
+            style="text-align: right; 
+            font-weight: bold; 
+            background-color: var(--cor-botao-primario); 
+            color: white; 
+            padding: 8px;
+            margin-top: 10px; 
+            font-size: 1em;">
+            TOTAL GERAL:
+        </td>
+        <td 
+            style="font-weight: bold; 
+            background-color: var(--cor-botao-primario); 
+            color: white; 
+            padding: 8px;
+            margin-top: 10px; 
+            font-size: 1em;">
+            ${totalGeralItens}
+        </td>
+    `;
+    tabelaInventarioBody.appendChild(trTotalGeral);
 }
 
 function mostrarStatus(mensagem, tipo) {

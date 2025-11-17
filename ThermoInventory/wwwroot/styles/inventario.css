@@ -117,6 +117,23 @@ th {
     background-color: var(--cor-fundo);
 }
 
+.linha-subtotal td {
+    background-color: var(--cor-fundo);
+    font-weight: bold;
+    border-top: 2px solid;
+}
+
+.linha-total-geral td {
+    background-color: var(--cor-fundo);
+    color: white;
+    font-size: 1em;
+}
+
+.linha-subtotal {
+    border-bottom: 3px solid var(--cor-borda);
+}
+
+
 /*Janela de inserção manual de quantidade*/
 
 .modal-overlay {
