@@ -6,8 +6,8 @@ using ThermoInventory.Models;
 
 namespace ThermoInventory.Controllers;
 
-[ApiController] // Marca esta classe como um Controller de API
-[Route("api/[controller]")] // Define a rota base como "api/relatorio"
+[ApiController]
+[Route("api/[controller]")]
 public class RelatorioController : ControllerBase
 {
     [HttpPost("gerar")]
@@ -102,8 +102,13 @@ public class RelatorioController : ControllerBase
         {
             col.Item().PaddingBottom(10).Text("Relatório Detalhado por Endereço").SemiBold().FontSize(16);
 
+            int totalGeralItens = 0;
+
             foreach (var grupoEndereco in data)
             {
+                int subtotalEndereco = grupoEndereco.Itens.Sum(i => i.Quantidade);
+                totalGeralItens += subtotalEndereco;
+                
                 col.Item().Border(1).BorderColor(Colors.Grey.Lighten2).Table(table =>
                 {
                     table.ColumnsDefinition(columns =>
@@ -125,9 +130,29 @@ public class RelatorioController : ControllerBase
                         table.Cell().Padding(5).Text(item.Descricao);
                         table.Cell().Padding(5).AlignRight().Text(item.Quantidade.ToString());
                     }
+
+                    table.Cell().ColumnSpan(2).Background(Colors.Grey.Lighten3).Padding(5).AlignRight()
+                        .Text($"Subtotal {grupoEndereco.Endereco}: ").SemiBold();
+                    table.Cell().Background(Colors.Grey.Lighten4).Padding(5).AlignRight()
+                        .Text(subtotalEndereco.ToString()).SemiBold();
+
                 });
                 col.Spacing(20);
             }
+            
+            col.Item().PaddingTop(10).Border(2).BorderColor(Colors.Red.Medium).Table(table =>
+            {
+                table.ColumnsDefinition(columns =>
+                {
+                    columns.RelativeColumn(10);
+                    columns.RelativeColumn(1);
+                });
+                
+                table.Cell().Background(Colors.Red.Medium).Padding(10)
+                    .AlignRight().Text("TOTAL GERAL:").SemiBold().FontSize(14).FontColor(Colors.White);
+                table.Cell().Background(Colors.Red.Medium).Padding(10)
+                    .AlignRight().Text(totalGeralItens.ToString()).SemiBold().FontSize(14).FontColor(Colors.White);
+            });
         });
     }
 
@@ -159,6 +184,13 @@ public class RelatorioController : ControllerBase
                     table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).Padding(5).Text(item.Descricao);
                     table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).Padding(5).AlignRight().Text(item.Quantidade.ToString());
                 }
+                
+                int totalGeralSegundaPagina = totals.Sum(i => i.Quantidade);
+                
+                table.Cell().ColumnSpan(2).Background(Colors.Red.Medium).Padding(10)
+                    .AlignRight().Text("TOTAL GERAL:").SemiBold().FontSize(14).FontColor(Colors.White);
+                table.Cell().Background(Colors.Red.Medium).Padding(10)
+                    .AlignRight().Text(totalGeralSegundaPagina.ToString()).SemiBold().FontSize(14).FontColor(Colors.White);
             });
         });
     }
